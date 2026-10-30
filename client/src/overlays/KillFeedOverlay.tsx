@@ -5,13 +5,13 @@ import { MatchEvent } from '../../../shared/types';
 // Event Priority Mapping (Lower number = Higher priority)
 const getEventPriority = (evt: MatchEvent): number => {
   if (evt.isVictory || evt.specialType === 'victory') return 1;
-  if (evt.isSteal || evt.specialType === 'lord_steal' || evt.specialType === 'tyrant_steal' || evt.specialType === 'overlord_steal') return 2;
+  if (evt.isSteal || evt.specialType?.includes('steal')) return 2;
   if (evt.multikill === 'savage' || evt.specialType === 'savage') return 3;
   if (evt.multikill === 'maniac' || evt.specialType === 'maniac') return 4;
   if (evt.isFirstBlood || evt.specialType === 'first_blood' || evt.multikill === 'first_blood') return 5;
   if (evt.multikill === 'triple' || evt.specialType === 'triple_kill') return 6;
-  if (evt.specialType === 'lord_secured' || (evt.type === 'objective' && (evt.objective?.id === 'lord' || evt.objective?.id === 'shadow_overlord'))) return 7;
-  if (evt.specialType === 'turtle_secured' || (evt.type === 'objective' && (evt.objective?.id === 'turtle' || evt.objective?.id === 'primal_tyrant'))) return 8;
+  if (evt.specialType?.includes('lord') || (evt.type === 'objective' && (evt.objective?.id === 'lord' || evt.objective?.id === 'shadow_overlord'))) return 7;
+  if (evt.specialType?.includes('turtle') || (evt.type === 'objective' && (evt.objective?.id === 'turtle' || evt.objective?.id === 'primal_tyrant'))) return 8;
   if (evt.isShutdown || evt.specialType === 'shutdown') return 9;
   if (evt.multikill === 'double' || evt.specialType === 'double_kill') return 10;
   if (evt.specialType === 'wipeout') return 11;
@@ -19,22 +19,36 @@ const getEventPriority = (evt: MatchEvent): number => {
   return 13;
 };
 
+// Vector SVG Crests for MPL Broadcasts
+const CrossedBladesIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-[#F5B942]">
+    <path d="M6.92 5H5L14 14l1.08-.92L6.92 5zm10.16 0h-1.92l-4.16 4.16.92.92L16 6.08V5h1.08zM19 17.08L14.92 13l-.92.92L17.08 17H16v1.08l1.92 1.92H19v-1.92l-1.08-1zM5 19h1.92L16 9.92l-.92-.92L6.08 18H5v1z" />
+  </svg>
+);
+
+const CrownLaurelIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-[#F5B942]">
+    <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
+  </svg>
+);
+
+const LightningStealIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 text-[#F59E0B]">
+    <path d="M7 2v11h3v9l7-12h-4l4-8z" />
+  </svg>
+);
+
 export const KillFeedOverlay: React.FC = () => {
   const { state, lastUndoneEventId } = useMatchState();
   const searchParams = new URLSearchParams(window.location.search);
   const strictControl = searchParams.get('strict') === 'true';
 
-  // Queue of events awaiting center-stage broadcast
   const [eventQueue, setEventQueue] = useState<MatchEvent[]>([]);
-  // Currently displayed center-stage event
   const [currentEvent, setCurrentEvent] = useState<MatchEvent | null>(null);
-  // Persistent compact feed (recent 3 events in corner)
   const [compactFeed, setCompactFeed] = useState<MatchEvent[]>([]);
-  
-  // Track processed event IDs to avoid duplicate insertions
   const processedEventIds = useRef<Set<string>>(new Set());
 
-  // 1. Instant Undo Purge
+  // Instant Undo Purge
   useEffect(() => {
     if (!lastUndoneEventId) return;
 
@@ -44,37 +58,33 @@ export const KillFeedOverlay: React.FC = () => {
     processedEventIds.current.delete(lastUndoneEventId);
   }, [lastUndoneEventId]);
 
-  // 2. Ingest New Events from State into Priority Queue
+  // Ingest New Events from State into Priority Queue
   useEffect(() => {
     if (!state || state.events.length === 0) return;
 
     const latest = state.events[0];
     if (processedEventIds.current.has(latest.id)) return;
 
-    // Check if event is recent (within 8 seconds of creation)
     const isRecent = Date.now() - latest.realTimestamp < 8000;
     if (!isRecent) return;
 
     processedEventIds.current.add(latest.id);
 
-    // If Victory, immediately jump to top priority and clear lesser pending
     if (latest.isVictory || latest.specialType === 'victory') {
       setCurrentEvent(latest);
       setEventQueue([]);
       return;
     }
 
-    // Add to secondary corner feed
     setCompactFeed(prev => [latest, ...prev.filter(e => e.id !== latest.id)].slice(0, 4));
 
-    // Add to center-stage priority queue
     setEventQueue(prev => {
       const updated = [...prev, latest];
       return updated.sort((a, b) => getEventPriority(a) - getEventPriority(b));
     });
   }, [state?.events]);
 
-  // 3. Queue Consumer: Show active event for ~3.0s, then cycle
+  // Queue Consumer: Sequential Hold Duration
   useEffect(() => {
     if (currentEvent !== null) return;
     if (eventQueue.length === 0) return;
@@ -83,7 +93,6 @@ export const KillFeedOverlay: React.FC = () => {
     setEventQueue(prev => prev.slice(1));
     setCurrentEvent(nextEvent);
 
-    // Hold duration: 3.2s for victory, 3.0s for savage/lord, 2.7s for standard
     const holdDuration = nextEvent.isVictory ? 5000 : (getEventPriority(nextEvent) <= 4 ? 3200 : 2700);
 
     const timer = setTimeout(() => {
@@ -93,7 +102,7 @@ export const KillFeedOverlay: React.FC = () => {
     return () => clearTimeout(timer);
   }, [currentEvent, eventQueue]);
 
-  // Secondary feed auto-eviction after 6 seconds
+  // Corner feed eviction
   useEffect(() => {
     if (compactFeed.length === 0) return;
     const timer = setTimeout(() => {
@@ -110,20 +119,20 @@ export const KillFeedOverlay: React.FC = () => {
     <div className="overlay-canvas bg-transparent select-none pointer-events-none relative overflow-hidden">
       
       {/* ============================================================== */}
-      {/* CENTER-STAGE BROADCAST ANNOUNCEMENT BANNER                     */}
+      {/* MPL-GRADE CENTER-STAGE TOURNAMENT ANNOUNCEMENT RIBBON          */}
       {/* ============================================================== */}
       {currentEvent && (
-        <div className="absolute top-[120px] left-0 w-full flex justify-center z-50 animate-pop-in">
-          <CenterStageEventCard event={currentEvent} state={state} />
+        <div className="absolute top-[135px] left-0 w-full flex justify-center z-50 animate-pop-in">
+          <MplEventBanner event={currentEvent} state={state} />
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* SECONDARY COMPACT CORNER FEED (Top-Right)                      */}
+      {/* SECONDARY CORNER KILL FEED (Top-Right)                         */}
       {/* ============================================================== */}
       <div className="absolute top-[90px] right-8 flex flex-col items-end gap-2.5 z-40">
         {compactFeed.map(evt => (
-          <CompactFeedItem key={evt.id} evt={evt} state={state} />
+          <MplCompactFeedItem key={evt.id} evt={evt} state={state} />
         ))}
       </div>
 
@@ -132,49 +141,54 @@ export const KillFeedOverlay: React.FC = () => {
 };
 
 // =====================================================================
-// CENTER-STAGE COMPONENT: Escapes & Animates Major Broadcast Milestones
+// MPL CINEMATIC EVENT BANNER COMPONENT
 // =====================================================================
-interface CenterStageProps {
+interface MplEventBannerProps {
   event: MatchEvent;
   state: any;
 }
 
-const CenterStageEventCard: React.FC<CenterStageProps> = ({ event, state }) => {
+const MplEventBanner: React.FC<MplEventBannerProps> = ({ event, state }) => {
   const isBlue = event.team === 'blue';
   const team = isBlue ? state.teamBlue : state.teamRed;
   const teamColor = isBlue ? '#2D8CFF' : '#FF4D67';
 
-  // --- 1. VICTORY OVERLAY ---
+  // --- 1. VICTORY OVERLAY (CHAMPIONSHIP STAGE) ---
   if (event.isVictory || event.specialType === 'victory') {
     const winnerTeam = event.winnerTeam || team;
     return (
-      <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-[#F5B942] bg-[#0B0F14]/95 backdrop-blur-xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] max-w-[800px] text-center glow-gold">
-        <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-[#F5B942]/20 border border-[#F5B942]/50 text-[#F5B942] text-xs font-mono font-black tracking-widest uppercase mb-3">
-          <span>🏆</span>
-          <span>MATCH DECIDED</span>
+      <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-b from-[#141a24]/95 via-[#0c1017]/95 to-[#07090d]/95 backdrop-blur-2xl border-2 border-[#F5B942] rounded-2xl shadow-[0_30px_70px_rgba(0,0,0,0.95)] max-w-[850px] text-center glow-gold relative overflow-hidden">
+        {/* Background Speedlines & Rays */}
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-[600px] h-32 bg-gradient-to-b from-[#F5B942]/20 to-transparent blur-3xl pointer-events-none" />
+
+        <div className="flex items-center gap-2 px-5 py-1 rounded-full bg-gradient-to-r from-transparent via-[#F5B942]/20 to-transparent border border-[#F5B942]/60 text-[#F5B942] font-rajdhani text-xs font-black tracking-widest uppercase mb-4">
+          <CrownLaurelIcon />
+          <span>MATCH DECIDED • SERIES CHAMPION</span>
+          <CrownLaurelIcon />
         </div>
 
-        <div className="w-24 h-24 rounded-2xl bg-[#121922] p-3 border-2 border-[#F5B942]/70 shadow-2xl flex items-center justify-center mb-3">
+        {/* Team Crest Shield */}
+        <div className="w-28 h-28 rounded-2xl bg-gradient-to-b from-[#1e2838] to-[#0a0f16] p-3 border-2 border-[#F5B942] shadow-[0_0_30px_rgba(245,185,66,0.6)] flex items-center justify-center mb-4">
           <img 
             src={winnerTeam.logo} 
             alt="" 
-            className="w-full h-full object-contain filter drop-shadow" 
+            className="w-full h-full object-contain filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]" 
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + winnerTeam.shortCode;
             }}
           />
         </div>
 
-        <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#FFF5D0] to-[#F5B942] tracking-wider uppercase drop-shadow-[0_4px_16px_rgba(245,185,66,0.6)] leading-none mb-1">
+        <h1 className="font-display text-7xl font-bold tracking-wider uppercase metallic-gold-text drop-shadow-[0_4px_20px_rgba(245,185,66,0.7)] leading-none mb-1 italic">
           VICTORY
         </h1>
 
-        <p className="text-xl font-black text-[#F3F6FA] uppercase tracking-widest mt-1">
+        <p className="font-rajdhani text-2xl font-black text-white uppercase tracking-widest mt-1">
           {winnerTeam.name}
         </p>
 
-        <span className="text-xs font-mono text-[#9FB0C5] tracking-wider uppercase mt-2">
-          SERIES SCORE: {state.teamBlue.seriesScore} - {state.teamRed.seriesScore}
+        <span className="font-mono text-sm font-bold text-slate-300 tracking-wider uppercase mt-3 px-4 py-1 rounded bg-black/60 border border-white/10">
+          FINAL SERIES SCORE: {state.teamBlue.seriesScore} - {state.teamRed.seriesScore}
         </span>
       </div>
     );
@@ -188,227 +202,213 @@ const CenterStageEventCard: React.FC<CenterStageProps> = ({ event, state }) => {
 
   if (isSavage || isManiac || isTriple || isDouble) {
     let title = 'DOUBLE KILL';
-    let cardStyle = 'border-[#2D8CFF]/60 glow-blue';
-    let gradient = 'from-[#1e293b] via-[#121922] to-[#0B0F14]';
-    let titleColor = 'text-[#F3F6FA]';
-    let icon = '⚔️';
+    let cardStyle = 'border border-[#2D8CFF]/70 glow-blue';
+    let gradient = 'from-[#0d1624] via-[#101b2d] to-[#080d16]';
+    let titleStyle = 'metallic-blue-text';
+    let subtitle = 'DUAL ELIMINATION';
 
     if (isSavage) {
       title = state.game === 'mlbb' ? 'SAVAGE' : 'PENTA KILL';
       cardStyle = 'border-2 border-[#F5B942] glow-gold';
-      gradient = 'from-[#38260b] via-[#182231] to-[#0B0F14]';
-      titleColor = 'text-transparent bg-clip-text bg-gradient-to-b from-[#FFF] to-[#F5B942] drop-shadow-[0_2px_12px_rgba(245,185,66,0.7)]';
-      icon = '👑';
+      gradient = 'from-[#2e1d05] via-[#1f1504] to-[#0c0902]';
+      titleStyle = 'metallic-gold-text drop-shadow-[0_4px_25px_rgba(245,185,66,0.8)]';
+      subtitle = 'MAXIMUM STREAK • TEAM CLEARED';
     } else if (isManiac) {
       title = 'MANIAC';
       cardStyle = 'border-2 border-[#F59E0B] glow-gold';
-      gradient = 'from-[#2b1c09] via-[#121922] to-[#0B0F14]';
-      titleColor = 'text-[#F5B942] drop-shadow-[0_2px_10px_rgba(245,158,11,0.5)]';
-      icon = '🔥';
+      gradient = 'from-[#261304] via-[#1a0e03] to-[#0a0501]';
+      titleStyle = 'metallic-gold-text drop-shadow-[0_2px_15px_rgba(245,158,11,0.6)]';
+      subtitle = '4X HERO STREAK';
     } else if (isTriple) {
       title = 'TRIPLE KILL';
       cardStyle = 'border border-[#00D1C7] glow-teal';
-      gradient = 'from-[#072428] via-[#121922] to-[#0B0F14]';
-      titleColor = 'text-[#00D1C7] drop-shadow-[0_2px_8px_rgba(0,209,199,0.5)]';
-      icon = '⚡';
+      gradient = 'from-[#051c1f] via-[#08282c] to-[#031012]';
+      titleStyle = 'metallic-cyan-text drop-shadow-[0_2px_12px_rgba(0,209,199,0.6)]';
+      subtitle = 'TRIPLE ELIMINATION';
     }
 
     return (
-      <div className={`flex items-center gap-5 px-6 py-3.5 rounded-xl bg-gradient-to-r ${gradient} bg-opacity-95 backdrop-blur-xl shadow-2xl ${cardStyle}`}>
-        {/* Killer Hero Avatar */}
-        {event.killerHero ? (
-          <div className="relative">
-            <div className={`w-14 h-14 rounded-xl overflow-hidden border-2 shadow-lg ${isBlue ? 'border-[#2D8CFF]' : 'border-[#FF4D67]'}`}>
-              <img 
-                src={event.killerHero.avatar} 
-                alt="" 
-                className="w-full h-full object-cover" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + event.killerHero?.name;
-                }}
-              />
-            </div>
-            <span className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded text-[9px] font-mono font-black text-black ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
-              {team.shortCode}
-            </span>
-          </div>
-        ) : (
-          <span className="text-3xl">{icon}</span>
-        )}
+      <div className={`flex items-stretch h-[80px] bg-gradient-to-r ${gradient} bg-opacity-95 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] mpl-banner-angled pl-8 pr-10 relative overflow-hidden ${cardStyle}`}>
+        {/* Neon Edge Blades */}
+        <div className={`absolute top-0 left-0 w-2 h-full ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`} />
+        <div className={`absolute top-0 right-0 w-2 h-full ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`} />
 
-        {/* Multikill Text Banner */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">{icon}</span>
-            <span className="text-[10px] font-mono font-bold tracking-widest text-[#9FB0C5] uppercase">
-              {event.killerHero?.name || team.name}
-            </span>
+        <div className="flex items-center gap-5 relative z-10">
+          
+          {/* Killer Hero Portrait with Team Colored Ring */}
+          {event.killerHero ? (
+            <div className="relative">
+              <div className={`w-14 h-14 rounded-full overflow-hidden border-2 shadow-lg ${isBlue ? 'border-[#2D8CFF] shadow-[0_0_12px_#2D8CFF]' : 'border-[#FF4D67] shadow-[0_0_12px_#FF4D67]'}`}>
+                <img 
+                  src={event.killerHero.avatar} 
+                  alt="" 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + event.killerHero?.name;
+                  }}
+                />
+              </div>
+              <span className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded text-[8px] font-rajdhani font-black text-black uppercase ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
+                {team.shortCode}
+              </span>
+            </div>
+          ) : (
+            <div className="p-2 rounded-xl bg-black/50 border border-white/20">
+              <CrownLaurelIcon />
+            </div>
+          )}
+
+          {/* Multikill Text Banner */}
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-2">
+              <span className="font-rajdhani text-xs font-black uppercase tracking-widest text-[#9FB0C5]">
+                {event.killerHero?.name || team.name}
+              </span>
+              <span className="text-white/20">•</span>
+              <span className="font-rajdhani text-[10px] font-bold uppercase tracking-wider text-[#F5B942]">
+                {subtitle}
+              </span>
+            </div>
+            <h2 className={`font-display text-5xl font-bold uppercase tracking-wider leading-none italic ${titleStyle}`}>
+              {title}
+            </h2>
           </div>
-          <h2 className={`text-3xl font-black uppercase tracking-wider leading-none ${titleColor}`}>
-            {title}
-          </h2>
+
+          {/* Right Trophy Badge */}
+          {isSavage && (
+            <div className="ml-4 pl-4 border-l border-white/10 flex items-center justify-center">
+              <CrownLaurelIcon />
+            </div>
+          )}
+
         </div>
       </div>
     );
   }
 
-  // --- 3. FIRST BLOOD OVERLAY ---
+  // --- 3. FIRST BLOOD OVERLAY (MPL CINEMATIC ANGLED RIBBON) ---
   if (event.isFirstBlood || event.specialType === 'first_blood' || event.multikill === 'first_blood') {
     return (
-      <div className="flex items-center gap-6 px-8 py-3.5 rounded-xl border-2 border-[#F5B942] bg-gradient-to-r from-[#2a1d0d]/95 via-[#121922]/95 to-[#0B0F14]/95 backdrop-blur-xl shadow-2xl glow-gold">
-        {/* Killer Avatar */}
-        {event.killerHero && (
-          <div className="relative">
-            <div className={`w-14 h-14 rounded-xl overflow-hidden border-2 ${isBlue ? 'border-[#2D8CFF]' : 'border-[#FF4D67]'}`}>
-              <img 
-                src={event.killerHero.avatar} 
-                alt="" 
-                className="w-full h-full object-cover" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + event.killerHero?.name;
-                }}
-              />
-            </div>
-            <span className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded text-[9px] font-mono font-black text-black ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
-              {team.shortCode}
-            </span>
-          </div>
-        )}
+      <div className="flex items-stretch h-[84px] bg-gradient-to-r from-[#1c1208]/95 via-[#241709]/95 to-[#120b04]/95 backdrop-blur-2xl border-2 border-[#F5B942] shadow-[0_20px_50px_rgba(0,0,0,0.95)] mpl-banner-angled pl-8 pr-8 glow-gold relative overflow-hidden">
+        
+        {/* Neon Team Accent Rails */}
+        <div className="absolute top-0 left-0 w-2 h-full bg-[#2D8CFF] shadow-[0_0_10px_#2D8CFF]" />
+        <div className="absolute top-0 right-0 w-2 h-full bg-[#FF4D67] shadow-[0_0_10px_#FF4D67]" />
 
-        {/* Center Title */}
-        <div className="flex flex-col items-center">
-          <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#F5B942] tracking-widest uppercase">
-            <span>🩸</span>
-            <span>INITIAL BLOODSHED</span>
+        <div className="flex items-center gap-6 relative z-10">
+          
+          {/* Killer Hero Portrait (Left) */}
+          {event.killerHero && (
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className={`w-14 h-14 rounded-full overflow-hidden border-2 ${isBlue ? 'border-[#2D8CFF] shadow-[0_0_14px_rgba(45,140,255,0.7)]' : 'border-[#FF4D67] shadow-[0_0_14px_rgba(255,77,103,0.7)]'}`}>
+                  <img 
+                    src={event.killerHero.avatar} 
+                    alt="" 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + event.killerHero?.name;
+                    }}
+                  />
+                </div>
+                <span className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded text-[8px] font-rajdhani font-black text-black uppercase ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
+                  {team.shortCode}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-rajdhani text-[10px] font-black uppercase tracking-wider text-[#2D8CFF]">KILLER</span>
+                <span className="font-display text-lg font-bold text-white uppercase tracking-wider leading-none">
+                  {event.killerHero.name}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Center Fiery First Blood Headline */}
+          <div className="flex flex-col items-center px-4">
+            <div className="flex items-center gap-1.5 font-rajdhani text-[10px] font-black text-[#F5B942] tracking-widest uppercase">
+              <CrossedBladesIcon />
+              <span>INITIAL BLOODSHED OF THE REALM</span>
+              <CrossedBladesIcon />
+            </div>
+            <h2 className="font-display text-5xl font-bold uppercase tracking-wider metallic-gold-text leading-none italic drop-shadow-[0_2px_15px_rgba(245,185,66,0.8)]">
+              FIRST BLOOD
+            </h2>
           </div>
-          <h2 className="text-3xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-b from-[#FFF] to-[#F5B942] leading-none drop-shadow-[0_2px_8px_rgba(245,185,66,0.6)]">
-            FIRST BLOOD
-          </h2>
+
+          {/* Victim Hero Portrait (Right - Grayscale with Blood Slash) */}
+          {event.victimHero && (
+            <div className="flex items-center gap-3 opacity-80">
+              <div className="flex flex-col text-right">
+                <span className="font-rajdhani text-[10px] font-black uppercase tracking-wider text-[#EF4444]">FALLEN</span>
+                <span className="font-display text-lg font-bold text-slate-300 uppercase tracking-wider leading-none">
+                  {event.victimHero.name}
+                </span>
+              </div>
+              <div className="relative">
+                <div className="w-13 h-13 rounded-full overflow-hidden border border-red-500/50 grayscale filter contrast-125">
+                  <img 
+                    src={event.victimHero.avatar} 
+                    alt="" 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + event.victimHero?.name;
+                    }}
+                  />
+                </div>
+                <div className="absolute inset-0 bg-red-600/30 rounded-full mix-blend-color-burn pointer-events-none" />
+              </div>
+            </div>
+          )}
+
         </div>
-
-        {/* Victim Avatar (Grayscale) */}
-        {event.victimHero && (
-          <div className="relative opacity-70">
-            <div className="w-12 h-12 rounded-xl overflow-hidden border border-[#273244] grayscale">
-              <img 
-                src={event.victimHero.avatar} 
-                alt="" 
-                className="w-full h-full object-cover" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + event.victimHero?.name;
-                }}
-              />
-            </div>
-            <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-[#EF4444] text-white">
-              FALLEN
-            </span>
-          </div>
-        )}
       </div>
     );
   }
 
   // --- 4. OBJECTIVES & STEALS (TURTLE, LORD, TYRANT, OVERLORD) ---
   const isSteal = event.isSteal || event.specialType?.includes('steal');
-  const isLordOrOverlord = event.specialType?.includes('lord') || event.objective?.id === 'lord' || event.objective?.id === 'shadow_overlord';
+  const isLord = event.specialType?.includes('lord') || event.objective?.id === 'lord' || event.objective?.id === 'shadow_overlord';
+  const objName = event.objective?.name || (isLord ? 'LORD' : 'TURTLE');
 
-  if (event.type === 'objective' || event.specialType?.includes('secured') || isSteal) {
-    const objName = event.objective?.name || (isLordOrOverlord ? 'LORD' : 'TURTLE');
-    const objIcon = event.objective?.icon || (isLordOrOverlord ? '👑' : '🐢');
+  return (
+    <div className={`flex items-stretch h-[76px] bg-gradient-to-r ${
+      isSteal 
+        ? 'from-[#2e1704] via-[#211002] to-[#0f0701] border-2 border-[#F59E0B] glow-gold' 
+        : isLord 
+          ? 'from-[#291c06] via-[#1a1204] to-[#0c0802] border-2 border-[#F5B942] glow-gold' 
+          : 'from-[#051c20] via-[#072428] to-[#031113] border border-[#00D1C7] glow-teal'
+    } bg-opacity-95 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] mpl-banner-angled pl-8 pr-10 relative overflow-hidden`}>
+      
+      {/* Team colored edge indicator */}
+      <div className={`absolute top-0 left-0 w-2 h-full ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`} />
 
-    return (
-      <div className={`flex items-center gap-5 px-6 py-3.5 rounded-xl backdrop-blur-xl shadow-2xl ${
-        isSteal 
-          ? 'border-2 border-[#F59E0B] bg-gradient-to-r from-[#381a07]/95 via-[#182231]/95 to-[#0B0F14]/95 glow-gold' 
-          : isLordOrOverlord
-            ? `border border-[#F5B942]/80 bg-[#121922]/95 glow-gold`
-            : `border border-[#00D1C7]/70 bg-[#121922]/95 glow-teal`
-      }`}>
-        <div className="text-3xl p-2 rounded-lg bg-[#0B0F14]/80 border border-[#273244]">
-          {objIcon}
+      <div className="flex items-center gap-5 relative z-10">
+        
+        {/* Objective Icon Emblem */}
+        <div className="p-2.5 rounded-xl bg-black/60 border border-white/20 shadow-inner">
+          {isSteal ? <LightningStealIcon /> : isLord ? <CrownLaurelIcon /> : <CrossedBladesIcon />}
         </div>
 
-        <div className="flex flex-col">
+        {/* Text */}
+        <div className="flex flex-col justify-center">
           <div className="flex items-center gap-2">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black text-black ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
+            <span className={`px-2 py-0.2 rounded text-[9px] font-rajdhani font-black text-black uppercase ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
               {team.shortCode}
             </span>
-            <span className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase tracking-widest">
-              {isSteal ? 'OBJECTIVE HIJACKED' : 'EPIC OBJECTIVE'}
+            <span className="font-rajdhani text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+              {isSteal ? 'CRITICAL OBJECTIVE HIJACKED' : 'EPIC OBJECTIVE SECURED'}
             </span>
           </div>
 
-          <h2 className={`text-2xl font-black uppercase tracking-wider leading-none mt-0.5 ${
-            isSteal ? 'text-[#F59E0B]' : isLordOrOverlord ? 'text-[#F5B942]' : 'text-[#00D1C7]'
+          <h2 className={`font-display text-4xl font-bold uppercase tracking-wider leading-none italic mt-0.5 ${
+            isSteal ? 'metallic-gold-text drop-shadow-[0_2px_12px_rgba(245,158,11,0.8)]' : isLord ? 'metallic-gold-text' : 'metallic-cyan-text'
           }`}>
             {isSteal ? `${objName} STOLEN!` : `${objName} SECURED`}
           </h2>
         </div>
-      </div>
-    );
-  }
 
-  // --- 5. TOWER DESTROYED ---
-  if (event.type === 'tower' || event.specialType === 'tower_destroyed') {
-    return (
-      <div className="flex items-center gap-4 px-5 py-2.5 rounded-xl border border-[#273244] bg-[#121922]/95 backdrop-blur-xl shadow-lg">
-        <span className="text-2xl">🏰</span>
-        <div>
-          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-black text-black mr-2 ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
-            {team.shortCode}
-          </span>
-          <span className="text-sm font-black text-[#F3F6FA] uppercase tracking-wider">
-            TURRET DESTROYED
-          </span>
-        </div>
       </div>
-    );
-  }
-
-  // --- 6. SHUTDOWN OVERLAY ---
-  if (event.isShutdown || event.specialType === 'shutdown') {
-    return (
-      <div className="flex items-center gap-4 px-6 py-3 rounded-xl border border-[#EF4444] bg-gradient-to-r from-[#2b0c10]/95 via-[#121922]/95 to-[#0B0F14]/95 backdrop-blur-xl shadow-xl">
-        <span className="text-2xl">🛑</span>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-black text-black ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
-              {team.shortCode}
-            </span>
-            <span className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase">BOUNTY SECURED</span>
-          </div>
-          <h2 className="text-xl font-black text-[#FF4D67] uppercase tracking-wider leading-none mt-0.5">
-            SHUTDOWN!
-          </h2>
-        </div>
-      </div>
-    );
-  }
-
-  // --- 7. TEAM WIPEOUT ---
-  if (event.specialType === 'wipeout') {
-    return (
-      <div className="flex items-center gap-4 px-6 py-3 rounded-xl border border-[#F59E0B] bg-[#121922]/95 backdrop-blur-xl shadow-xl glow-gold">
-        <span className="text-2xl">💀</span>
-        <div>
-          <span className="text-[10px] font-mono font-bold text-[#F59E0B] uppercase tracking-widest block">ALL HEROES DEFEATED</span>
-          <h2 className="text-2xl font-black text-[#F3F6FA] uppercase tracking-wider leading-none">
-            WIPEOUT!
-          </h2>
-        </div>
-      </div>
-    );
-  }
-
-  // Default Standard Kill Banner
-  return (
-    <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl border border-[#273244] bg-[#121922]/95 backdrop-blur-xl shadow-lg">
-      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black text-black ${isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'}`}>
-        {team.shortCode}
-      </span>
-      <span className="text-sm font-bold text-[#F3F6FA]">
-        {event.headline || 'ELIMINATION'}
-      </span>
     </div>
   );
 };
@@ -416,18 +416,18 @@ const CenterStageEventCard: React.FC<CenterStageProps> = ({ event, state }) => {
 // =====================================================================
 // COMPACT CORNER FEED ITEM (Clean 1920x1080 Secondary Corner Stack)
 // =====================================================================
-const CompactFeedItem: React.FC<{ evt: MatchEvent; state: any }> = ({ evt, state }) => {
+const MplCompactFeedItem: React.FC<{ evt: MatchEvent; state: any }> = ({ evt, state }) => {
   const isBlue = evt.team === 'blue';
   const team = isBlue ? state.teamBlue : state.teamRed;
 
   return (
-    <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border backdrop-blur-md shadow-md animate-slide-down ${
+    <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md border backdrop-blur-md shadow-lg animate-slide-down ${
       isBlue 
-        ? 'bg-[#121922]/90 border-[#2D8CFF]/50 text-[#F3F6FA]' 
-        : 'bg-[#121922]/90 border-[#FF4D67]/50 text-[#F3F6FA]'
+        ? 'bg-[#0d1522]/95 border-[#2D8CFF]/60 text-white' 
+        : 'bg-[#220d13]/95 border-[#FF4D67]/60 text-white'
     }`}>
       {/* Team Badge */}
-      <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-black text-black uppercase ${
+      <span className={`px-1.5 py-0.2 rounded text-[9px] font-rajdhani font-black text-black uppercase ${
         isBlue ? 'bg-[#2D8CFF]' : 'bg-[#FF4D67]'
       }`}>
         {team.shortCode}
@@ -444,26 +444,15 @@ const CompactFeedItem: React.FC<{ evt: MatchEvent; state: any }> = ({ evt, state
               (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + evt.killerHero?.name;
             }}
           />
-          <span className="text-xs font-bold text-white max-w-[80px] truncate">
+          <span className="font-rajdhani text-xs font-bold text-white max-w-[80px] truncate">
             {evt.killerHero.name}
           </span>
         </div>
       )}
 
       {/* Event Icon / Action */}
-      <div className="text-[11px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-black/40">
-        {evt.type === 'kill' && (
-          <span className="text-red-400">⚔️ {evt.multikill && evt.multikill !== 'single' ? evt.multikill.toUpperCase() : ''}</span>
-        )}
-        {evt.type === 'objective' && (
-          <span className="text-[#F5B942]">{evt.objective?.icon || '👑'} {evt.isSteal ? 'STOLEN' : 'SECURED'}</span>
-        )}
-        {evt.type === 'tower' && (
-          <span className="text-[#9FB0C5]">🏰 TURRET</span>
-        )}
-        {evt.isVictory && (
-          <span className="text-[#F5B942]">🏆 VICTORY</span>
-        )}
+      <div className="font-display text-sm font-bold tracking-wider px-2 py-0.5 rounded bg-black/50 text-[#F5B942]">
+        {evt.headline || (evt.type === 'kill' ? 'KILL' : 'OBJECTIVE')}
       </div>
 
       {/* Victim Hero Avatar */}

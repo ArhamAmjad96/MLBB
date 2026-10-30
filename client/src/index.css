@@ -37,11 +37,57 @@
 }
 
 .glass-top-hud {
-  background: linear-gradient(180deg, rgba(11, 15, 20, 0.90) 0%, rgba(18, 25, 34, 0.84) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(39, 50, 68, 0.85);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(14, 19, 27, 0.94) 0%, rgba(9, 13, 19, 0.90) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* MPL Angled Cuts & Chamfered Broadcast Panels */
+.mpl-cut-left {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
+}
+
+.mpl-cut-right {
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.mpl-hex-center {
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+}
+
+.mpl-banner-angled {
+  clip-path: polygon(24px 0, calc(100% - 24px) 0, 100% 100%, 0 100%);
+}
+
+.mpl-badge-angled {
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+/* Metallic Tournament Text Gradients */
+.metallic-gold-text {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FFF0AA 30%, #F5B942 65%, #C28519 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.metallic-blue-text {
+  background: linear-gradient(180deg, #FFFFFF 0%, #C0E3FF 35%, #2D8CFF 70%, #1555B8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.metallic-red-text {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FFCAD2 35%, #FF4D67 70%, #B8152E 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.metallic-cyan-text {
+  background: linear-gradient(180deg, #FFFFFF 0%, #BFFFFB 35%, #00D1C7 70%, #007D77 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .glow-blue {

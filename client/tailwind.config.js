@@ -50,7 +50,9 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
-        display: ['Teko', 'Impact', 'sans-serif']
+        display: ['Teko', 'Impact', 'sans-serif'],
+        rajdhani: ['Rajdhani', 'sans-serif'],
+        barlow: ['"Barlow Condensed"', 'sans-serif']
       },
       keyframes: {
         'pop-in': {
