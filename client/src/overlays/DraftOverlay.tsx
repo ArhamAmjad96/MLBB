@@ -102,6 +102,10 @@ export const DraftOverlay: React.FC = () => {
                     src={pick.heroAvatar} 
                     alt={pick.heroName} 
                     className="absolute inset-0 w-full h-full object-cover object-top opacity-90 transition-transform duration-500" 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${pick.heroName || 'pick'}`;
+                    }}
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center font-mono text-slate-700 text-3xl font-black">
@@ -149,6 +153,10 @@ export const DraftOverlay: React.FC = () => {
                     src={pick.heroAvatar} 
                     alt={pick.heroName} 
                     className="absolute inset-0 w-full h-full object-cover object-top opacity-90 transition-transform duration-500" 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${pick.heroName || 'pick'}`;
+                    }}
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center font-mono text-slate-700 text-3xl font-black">
@@ -192,7 +200,15 @@ export const DraftOverlay: React.FC = () => {
               >
                 {ban.heroAvatar ? (
                   <>
-                    <img src={ban.heroAvatar} alt="" className="w-full h-full object-cover grayscale contrast-125" />
+                    <img 
+                      src={ban.heroAvatar} 
+                      alt="" 
+                      className="w-full h-full object-cover grayscale contrast-125" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${ban.heroName || 'ban'}`;
+                      }}
+                    />
                     <div className="absolute inset-0 bg-red-950/60 flex items-center justify-center font-black text-red-400 text-lg">
                       ✕
                     </div>
@@ -220,7 +236,15 @@ export const DraftOverlay: React.FC = () => {
               >
                 {ban.heroAvatar ? (
                   <>
-                    <img src={ban.heroAvatar} alt="" className="w-full h-full object-cover grayscale contrast-125" />
+                    <img 
+                      src={ban.heroAvatar} 
+                      alt="" 
+                      className="w-full h-full object-cover grayscale contrast-125" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${ban.heroName || 'ban'}`;
+                      }}
+                    />
                     <div className="absolute inset-0 bg-red-950/60 flex items-center justify-center font-black text-red-400 text-lg">
                       ✕
                     </div>

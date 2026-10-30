@@ -209,7 +209,15 @@ export const DraftControl: React.FC<DraftControlProps> = ({ state }) => {
                 >
                   {ban.heroAvatar ? (
                     <>
-                      <img src={ban.heroAvatar} alt="" className="w-full h-full object-cover filter grayscale contrast-125" />
+                      <img 
+                        src={ban.heroAvatar} 
+                        alt="" 
+                        className="w-full h-full object-cover filter grayscale contrast-125"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${ban.heroName || 'ban'}`;
+                        }}
+                      />
                       <div className="absolute inset-0 bg-red-900/40 flex items-center justify-center font-bold text-red-400 text-xs">
                         ✕
                       </div>
@@ -234,7 +242,15 @@ export const DraftControl: React.FC<DraftControlProps> = ({ state }) => {
               >
                 <div className="w-10 h-10 rounded-lg bg-slate-800 overflow-hidden border border-slate-700 flex-shrink-0 flex items-center justify-center">
                   {pick.heroAvatar ? (
-                    <img src={pick.heroAvatar} alt="" className="w-full h-full object-cover" />
+                    <img 
+                      src={pick.heroAvatar} 
+                      alt="" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${pick.heroName || 'pick'}`;
+                      }}
+                    />
                   ) : (
                     <span className="text-xs font-mono font-bold text-slate-600">P{i+1}</span>
                   )}
@@ -311,7 +327,15 @@ export const DraftControl: React.FC<DraftControlProps> = ({ state }) => {
                         : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800/80 hover:border-slate-700'
                   }`}
                 >
-                  <img src={hero.avatar} alt="" className="w-11 h-11 rounded-lg bg-slate-800 object-cover shadow-md" />
+                  <img 
+                    src={hero.avatar} 
+                    alt={hero.name} 
+                    className="w-11 h-11 rounded-lg bg-slate-800 object-cover shadow-md"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = (hero as any).fallbackAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${hero.name}`;
+                    }}
+                  />
                   <span className="text-[11px] font-bold text-white truncate max-w-full">
                     {hero.name}
                   </span>
@@ -381,7 +405,15 @@ export const DraftControl: React.FC<DraftControlProps> = ({ state }) => {
                 >
                   {ban.heroAvatar ? (
                     <>
-                      <img src={ban.heroAvatar} alt="" className="w-full h-full object-cover filter grayscale contrast-125" />
+                      <img 
+                        src={ban.heroAvatar} 
+                        alt="" 
+                        className="w-full h-full object-cover filter grayscale contrast-125"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${ban.heroName || 'ban'}`;
+                        }}
+                      />
                       <div className="absolute inset-0 bg-red-900/40 flex items-center justify-center font-bold text-red-400 text-xs">
                         ✕
                       </div>
@@ -406,7 +438,15 @@ export const DraftControl: React.FC<DraftControlProps> = ({ state }) => {
               >
                 <div className="w-10 h-10 rounded-lg bg-slate-800 overflow-hidden border border-slate-700 flex-shrink-0 flex items-center justify-center">
                   {pick.heroAvatar ? (
-                    <img src={pick.heroAvatar} alt="" className="w-full h-full object-cover" />
+                    <img 
+                      src={pick.heroAvatar} 
+                      alt="" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${pick.heroName || 'pick'}`;
+                      }}
+                    />
                   ) : (
                     <span className="text-xs font-mono font-bold text-slate-600">P{i+1}</span>
                   )}

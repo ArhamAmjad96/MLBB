@@ -9,6 +9,7 @@ export interface HeroDefinition {
   game: GameType;
   primaryRole: string;
   avatar: string;
+  fallbackAvatar?: string;
 }
 
 export interface ObjectiveDefinition {
