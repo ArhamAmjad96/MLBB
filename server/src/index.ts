@@ -141,8 +141,13 @@ app.post('/api/events/slot-kill', (req, res) => {
 });
 
 app.post('/api/events/objective', (req, res) => {
-  const { team, objectiveId, objectiveName, objectiveIcon } = req.body;
-  const result = engine.registerObjectiveEvent({ team, objectiveId, objectiveName, objectiveIcon });
+  const { team, objectiveId, objectiveName, objectiveIcon, isSteal } = req.body;
+  const result = engine.registerObjectiveEvent({ team, objectiveId, objectiveName, objectiveIcon, isSteal });
+  res.json(result);
+});
+
+app.post('/api/events/special', (req, res) => {
+  const result = engine.registerSpecialEvent(req.body);
   res.json(result);
 });
 

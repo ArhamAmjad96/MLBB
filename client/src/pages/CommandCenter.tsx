@@ -280,57 +280,57 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ state, isConnected
     <div className="max-w-[1720px] mx-auto p-4 space-y-5 text-slate-200">
       
       {/* ================= PERSISTENT BROADCAST HEADER ================= */}
-      <header className="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <header className="bg-[#121922] border border-[#273244] rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
         {/* Left: Tournament & Match Series Info */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-amber-400 font-black shadow-inner">
+          <div className="w-10 h-10 rounded-xl bg-[#0B0F14] border border-[#273244] flex items-center justify-center text-[#F5B942] font-black shadow-inner">
             <Trophy size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#9FB0C5]">
                 {tournamentName || 'BROADCAST PRODUCTION'}
               </span>
-              <span className="text-slate-600">•</span>
-              <span className="text-[10px] font-mono font-bold text-amber-400">
+              <span className="text-[#273244]">•</span>
+              <span className="text-[10px] font-mono font-bold text-[#F5B942]">
                 GAME {currentGameNumber} OF {format}
               </span>
             </div>
-            <h1 className="text-lg font-black text-white leading-tight">
+            <h1 className="text-lg font-black text-[#F3F6FA] leading-tight">
               {matchName || 'Competitive Series'}
             </h1>
           </div>
         </div>
 
         {/* Center: Blue vs Red Badges */}
-        <div className="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 shadow-inner">
-          <div className="flex items-center gap-2 text-sky-400 font-bold text-xs">
-            <img src={teamBlue.logo} alt="" className="w-6 h-6 rounded bg-slate-800 object-contain p-0.5" />
+        <div className="flex items-center gap-3 bg-[#0B0F14] px-4 py-2 rounded-xl border border-[#273244] shadow-inner">
+          <div className="flex items-center gap-2 text-[#2D8CFF] font-bold text-xs">
+            <img src={teamBlue.logo} alt="" className="w-6 h-6 rounded bg-[#121922] object-contain p-0.5" />
             <span>{teamBlue.shortCode}</span>
-            <span className="text-base font-black font-mono bg-sky-950/80 px-2 py-0.5 rounded text-white border border-sky-500/30">
+            <span className="text-base font-black font-mono bg-[#2D8CFF]/20 px-2 py-0.5 rounded text-white border border-[#2D8CFF]/40">
               {teamBlue.seriesScore}
             </span>
           </div>
 
-          <span className="text-slate-600 font-black text-xs font-mono">VS</span>
+          <span className="text-[#9FB0C5] font-black text-xs font-mono">VS</span>
 
-          <div className="flex items-center gap-2 text-red-400 font-bold text-xs">
-            <span className="text-base font-black font-mono bg-red-950/80 px-2 py-0.5 rounded text-white border border-red-500/30">
+          <div className="flex items-center gap-2 text-[#FF4D67] font-bold text-xs">
+            <span className="text-base font-black font-mono bg-[#FF4D67]/20 px-2 py-0.5 rounded text-white border border-[#FF4D67]/40">
               {teamRed.seriesScore}
             </span>
             <span>{teamRed.shortCode}</span>
-            <img src={teamRed.logo} alt="" className="w-6 h-6 rounded bg-slate-800 object-contain p-0.5" />
+            <img src={teamRed.logo} alt="" className="w-6 h-6 rounded bg-[#121922] object-contain p-0.5" />
           </div>
         </div>
 
         {/* Right: Lifecycle Transition & Game Mode Switcher */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Game Mode Pill */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className="flex items-center bg-[#0B0F14] p-1 rounded-xl border border-[#273244]">
             <button
               onClick={() => handleGameSwitchRequest('mlbb')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-all ${
-                isMlbb ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                isMlbb ? 'bg-[#2D8CFF] text-white shadow-sm' : 'text-[#9FB0C5] hover:text-[#F3F6FA]'
               }`}
             >
               MLBB
@@ -338,7 +338,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ state, isConnected
             <button
               onClick={() => handleGameSwitchRequest('hok')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-all ${
-                !isMlbb ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                !isMlbb ? 'bg-[#F59E0B] text-black shadow-sm' : 'text-[#9FB0C5] hover:text-[#F3F6FA]'
               }`}
             >
               HOK
@@ -346,32 +346,32 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ state, isConnected
           </div>
 
           {/* Lifecycle Status Pill & Quick Transition Dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-1.5 bg-[#0B0F14] px-3 py-1.5 rounded-xl border border-[#273244]">
             <span className={`w-2.5 h-2.5 rounded-full ${
-              status === 'live' ? 'bg-emerald-400 animate-pulse' :
-              status === 'drafting' ? 'bg-amber-400 animate-pulse' :
-              status === 'paused' ? 'bg-yellow-400' :
-              status === 'ended' ? 'bg-indigo-400' : 'bg-slate-500'
+              status === 'live' ? 'bg-[#22C55E] animate-pulse' :
+              status === 'drafting' ? 'bg-[#F59E0B] animate-pulse' :
+              status === 'paused' ? 'bg-[#F5B942]' :
+              status === 'ended' ? 'bg-[#00D1C7]' : 'bg-[#9FB0C5]'
             }`} />
             <select
               value={status}
               onChange={(e) => handleLifecycleChange(e.target.value as MatchLifecycleStatus)}
-              className="bg-transparent text-xs font-mono font-bold uppercase text-white focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs font-mono font-bold uppercase text-[#F3F6FA] focus:outline-none cursor-pointer"
             >
-              <option value="scheduled" className="bg-slate-900 text-slate-300">Scheduled</option>
-              <option value="ready" className="bg-slate-900 text-sky-400">Ready</option>
-              <option value="drafting" className="bg-slate-900 text-amber-400">Drafting</option>
-              <option value="live" className="bg-slate-900 text-emerald-400">Live</option>
-              <option value="paused" className="bg-slate-900 text-yellow-400">Paused</option>
-              <option value="ended" className="bg-slate-900 text-indigo-400">Ended</option>
-              <option value="archived" className="bg-slate-900 text-slate-500">Archived</option>
+              <option value="scheduled" className="bg-[#121922] text-[#9FB0C5]">Scheduled</option>
+              <option value="ready" className="bg-[#121922] text-[#2D8CFF]">Ready</option>
+              <option value="drafting" className="bg-[#121922] text-[#F5B942]">Drafting</option>
+              <option value="live" className="bg-[#121922] text-[#22C55E]">Live</option>
+              <option value="paused" className="bg-[#121922] text-[#F59E0B]">Paused</option>
+              <option value="ended" className="bg-[#121922] text-[#00D1C7]">Ended</option>
+              <option value="archived" className="bg-[#121922] text-[#9FB0C5]">Archived</option>
             </select>
           </div>
 
           {/* Outputs Health Status */}
-          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs font-mono">
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-red-500'}`} />
-            <span className="text-slate-400">
+          <div className="flex items-center gap-2 bg-[#0B0F14] px-3 py-1.5 rounded-xl border border-[#273244] text-xs font-mono">
+            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
+            <span className="text-[#9FB0C5]">
               {activeOnAirCount} On-Air
             </span>
           </div>

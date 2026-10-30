@@ -4,19 +4,22 @@ import {
   Pause, 
   RotateCcw, 
   Undo2, 
-  Shield, 
-  Plus, 
-  Minus, 
-  Radio, 
   Trophy, 
   Crosshair, 
   Coins, 
   Castle, 
-  History 
+  History, 
+  Zap, 
+  Skull, 
+  Flame, 
+  Crown, 
+  ShieldAlert, 
+  Swords, 
+  CheckCircle2 
 } from 'lucide-react';
-import { MatchLiveState, HeroDefinition, MultikillType } from '../../../shared/types';
+import { MatchLiveState, HeroDefinition, MultikillType, SpecialEventType } from '../../../shared/types';
 import { api } from '../services/api';
-import { formatTime } from '../utils/formatters';
+import { formatTime, formatGold } from '../utils/formatters';
 
 interface LiveControlProps {
   state: MatchLiveState | null;
@@ -25,11 +28,11 @@ interface LiveControlProps {
 export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
   const [heroes, setHeroes] = useState<HeroDefinition[]>([]);
   const [objectives, setObjectives] = useState<any[]>([]);
+  const [activeTabTeam, setActiveTabTeam] = useState<'blue' | 'red'>('blue');
+  const [isKillModalOpen, setIsKillModalOpen] = useState(false);
   const [selectedKiller, setSelectedKiller] = useState<HeroDefinition | undefined>();
   const [selectedVictim, setSelectedVictim] = useState<HeroDefinition | undefined>();
-  const [selectedTeam, setSelectedTeam] = useState<'blue' | 'red'>('blue');
-  const [multikillType, setMultikillType] = useState<MultikillType>('single');
-  const [isKillModalOpen, setIsKillModalOpen] = useState(false);
+  const [selectedMultikill, setSelectedMultikill] = useState<MultikillType>('single');
 
   useEffect(() => {
     if (state?.game) {
@@ -40,7 +43,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
 
   if (!state) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] text-slate-400">
+      <div className="flex items-center justify-center min-h-[60vh] text-[#9FB0C5]">
         Loading live state...
       </div>
     );
@@ -52,63 +55,71 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
   const handleToggleClock = () => api.toggleClock();
   const handleResetClock = () => api.setClock(0);
   const handleAdjustClock = (deltaSeconds: number) => {
-    api.setClock(state.clockSeconds + deltaSeconds);
+    api.setClock(Math.max(0, state.clockSeconds + deltaSeconds));
   };
 
   // Scoreboard Adjustments
   const adjustScore = (team: 'blue' | 'red', delta: number) => {
     if (team === 'blue') {
-      api.updateScoreboard({ blueScore: state.teamBlue.seriesScore + delta });
+      api.updateScoreboard({ blueScore: Math.max(0, state.teamBlue.seriesScore + delta) });
     } else {
-      api.updateScoreboard({ redScore: state.teamRed.seriesScore + delta });
+      api.updateScoreboard({ redScore: Math.max(0, state.teamRed.seriesScore + delta) });
     }
   };
 
   const adjustKills = (team: 'blue' | 'red', delta: number) => {
     if (team === 'blue') {
-      api.updateScoreboard({ blueKills: state.teamBlue.kills + delta });
+      api.updateScoreboard({ blueKills: Math.max(0, state.teamBlue.kills + delta) });
     } else {
-      api.updateScoreboard({ redKills: state.teamRed.kills + delta });
+      api.updateScoreboard({ redKills: Math.max(0, state.teamRed.kills + delta) });
     }
   };
 
   const adjustGold = (team: 'blue' | 'red', delta: number) => {
     if (team === 'blue') {
-      api.updateScoreboard({ blueGold: state.teamBlue.gold + delta });
+      api.updateScoreboard({ blueGold: Math.max(0, state.teamBlue.gold + delta) });
     } else {
-      api.updateScoreboard({ redGold: state.teamRed.gold + delta });
+      api.updateScoreboard({ redGold: Math.max(0, state.teamRed.gold + delta) });
     }
   };
 
   const adjustTowers = (team: 'blue' | 'red', delta: number) => {
     if (team === 'blue') {
-      api.updateScoreboard({ blueTowers: state.teamBlue.towers + delta });
+      api.updateScoreboard({ blueTowers: Math.min(9, Math.max(0, state.teamBlue.towers + delta)) });
     } else {
-      api.updateScoreboard({ redTowers: state.teamRed.towers + delta });
+      api.updateScoreboard({ redTowers: Math.min(9, Math.max(0, state.teamRed.towers + delta)) });
     }
   };
 
-  // Events
-  const handleTriggerObjective = (team: 'blue' | 'red', obj: any) => {
-    api.registerObjective({
+  // 1-Click Fast Special Events
+  const triggerSpecial = (team: 'blue' | 'red', specialType: SpecialEventType) => {
+    api.registerSpecialEvent({
       team,
-      objectiveId: obj.id,
-      objectiveName: obj.name,
-      objectiveIcon: obj.icon
+      specialType
     });
   };
 
-  const handleRegisterKill = () => {
+  // Slot Kill (from drafted hero)
+  const handleSlotKill = (team: 'blue' | 'red', slotIndex: number) => {
+    api.registerSlotKill({
+      team,
+      killerSlotIndex: slotIndex,
+      multikill: 'single'
+    });
+  };
+
+  // Detailed Kill Modal Submission
+  const handleRegisterDetailedKill = () => {
     api.registerKill({
-      team: selectedTeam,
+      team: activeTabTeam,
       killerHero: selectedKiller,
       victimHero: selectedVictim,
-      multikill: multikillType
+      multikill: selectedMultikill
     });
     setIsKillModalOpen(false);
     setSelectedKiller(undefined);
     setSelectedVictim(undefined);
-    setMultikillType('single');
+    setSelectedMultikill('single');
   };
 
   const handleUndo = () => {
@@ -116,43 +127,52 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
   };
 
   return (
-    <div className="max-w-[1700px] mx-auto p-4 space-y-6">
+    <div className="max-w-[1700px] mx-auto p-4 space-y-6 select-none font-sans">
       
-      {/* Top Banner: Control Center Header & Fast Undo */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-4 rounded-xl shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg">
-            <Radio size={24} className={state.isClockRunning ? 'animate-pulse' : ''} />
+      {/* ============================================================== */}
+      {/* 1. TOP CONTROL BAR: MATCH CLOCK & CRITICAL ACTIONS             */}
+      {/* ============================================================== */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-[#121922] border border-[#273244] p-4 rounded-xl shadow-xl">
+        
+        {/* Match Header Info */}
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-[#182231] border border-[#273244] rounded-lg">
+            <Swords size={22} className="text-[#00D1C7]" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-white flex items-center gap-2">
-              LIVE MATCH DESK
-              <span className={`text-xs px-2 py-0.5 rounded uppercase font-mono font-bold ${
-                isMlbb ? 'bg-blue-600 text-white' : 'bg-amber-600 text-white'
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-black text-[#F3F6FA] uppercase tracking-wide">
+                LIVE MATCH CONTROL
+              </h1>
+              <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
+                isMlbb ? 'bg-[#2D8CFF]/20 text-[#2D8CFF] border border-[#2D8CFF]/40' : 'bg-[#F5B942]/20 text-[#F5B942] border border-[#F5B942]/40'
               }`}>
-                {state.game.toUpperCase()} MODE
+                {state.game.toUpperCase()}
               </span>
-            </h1>
-            <p className="text-xs text-slate-400 font-mono">
-              Direct match state controller with real-time overlay synchronization.
+              <span className="text-xs font-mono font-bold text-[#9FB0C5]">
+                GAME {state.currentGameNumber} • {state.format}
+              </span>
+            </div>
+            <p className="text-xs text-[#9FB0C5] font-mono mt-0.5">
+              Operator Console • Real-time overlay event dispatch
             </p>
           </div>
         </div>
 
         {/* Global Match Clock Controls */}
-        <div className="flex items-center gap-3 bg-slate-950/80 px-4 py-2 rounded-lg border border-slate-800">
-          <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Match Clock</span>
-          <span className="font-mono text-2xl font-black text-white tracking-widest min-w-[70px]">
+        <div className="flex items-center gap-3 bg-[#0B0F14] px-4 py-2 rounded-xl border border-[#273244]">
+          <span className="text-[10px] uppercase tracking-wider text-[#9FB0C5] font-bold">MATCH CLOCK</span>
+          <span className="font-mono text-2xl font-black text-[#F5B942] tracking-wider min-w-[70px]">
             {formatTime(state.clockSeconds)}
           </span>
 
           <div className="flex items-center gap-1.5 ml-2">
             <button
               onClick={handleToggleClock}
-              className={`px-3 py-1.5 rounded font-bold text-xs flex items-center gap-1 transition-all ${
+              className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer ${
                 state.isClockRunning 
-                  ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_10px_rgba(217,119,6,0.5)]' 
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                  ? 'bg-[#F59E0B] hover:bg-amber-600 text-black' 
+                  : 'bg-[#22C55E] hover:bg-green-600 text-black'
               }`}
             >
               {state.isClockRunning ? <Pause size={14} /> : <Play size={14} />}
@@ -161,21 +181,21 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
 
             <button
               onClick={() => handleAdjustClock(30)}
-              className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-mono font-bold"
+              className="px-2.5 py-1.5 bg-[#182231] hover:bg-[#273244] text-[#F3F6FA] rounded-lg text-xs font-mono font-bold border border-[#273244]"
               title="+30 Seconds"
             >
               +30s
             </button>
             <button
               onClick={() => handleAdjustClock(-30)}
-              className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-mono font-bold"
+              className="px-2.5 py-1.5 bg-[#182231] hover:bg-[#273244] text-[#F3F6FA] rounded-lg text-xs font-mono font-bold border border-[#273244]"
               title="-30 Seconds"
             >
               -30s
             </button>
             <button
               onClick={handleResetClock}
-              className="p-1.5 bg-slate-800 hover:bg-red-900/50 hover:text-red-300 text-slate-400 rounded text-xs transition-colors"
+              className="p-1.5 bg-[#182231] hover:bg-red-900/40 hover:text-red-300 text-[#9FB0C5] rounded-lg text-xs transition-colors border border-[#273244]"
               title="Reset Clock to 00:00"
             >
               <RotateCcw size={14} />
@@ -183,23 +203,23 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
           </div>
         </div>
 
-        {/* Emergency Undo Button */}
+        {/* Prominent Emergency Undo & Detailed Kill Button */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsKillModalOpen(true)}
-            className="px-4 py-2 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white text-xs font-extrabold rounded-lg shadow-lg flex items-center gap-2 transition-all cursor-pointer"
+            className="px-3.5 py-2 bg-[#182231] hover:bg-[#273244] border border-[#273244] text-[#F3F6FA] text-xs font-bold rounded-lg flex items-center gap-2 transition-all cursor-pointer shadow-md"
           >
-            <Crosshair size={16} />
-            REGISTER KILL EVENT
+            <Crosshair size={14} className="text-[#FF4D67]" />
+            CUSTOM KILL MODAL
           </button>
 
           <button
             onClick={handleUndo}
             disabled={state.events.length === 0}
-            className={`px-4 py-2 rounded-lg text-xs font-extrabold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all shadow-md ${
               state.events.length > 0
-                ? 'bg-amber-600/20 border border-amber-500/50 text-amber-300 hover:bg-amber-600/30 cursor-pointer shadow-md'
-                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                ? 'bg-[#F59E0B]/20 border border-[#F59E0B]/60 text-[#F5B942] hover:bg-[#F59E0B]/30 cursor-pointer'
+                : 'bg-[#182231] text-[#9FB0C5]/40 cursor-not-allowed border border-[#273244]'
             }`}
           >
             <Undo2 size={16} />
@@ -208,69 +228,66 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
         </div>
       </div>
 
-      {/* Main Grid: Blue Team Control vs Red Team Control */}
+      {/* ============================================================== */}
+      {/* 2. DUAL TEAM COLUMNS: BLUE & RED ARENAS                        */}
+      {/* ============================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* BLUE TEAM CARD */}
-        <div className="bg-slate-900/80 border-2 border-sky-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          {/* Team Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
+        {/* ---------------- BLUE TEAM COLUMN ---------------- */}
+        <div className="bg-[#121922] border-2 border-[#2D8CFF]/40 rounded-xl p-5 shadow-xl relative overflow-hidden">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-[#273244] pb-4 mb-4">
             <div className="flex items-center gap-3">
-              <img 
-                src={state.teamBlue.logo} 
-                alt={state.teamBlue.name} 
-                className="w-12 h-12 rounded-xl bg-slate-800 p-1 border border-sky-500/40 object-contain shadow-md"
-              />
+              <div className="w-12 h-12 rounded-xl bg-[#0B0F14] p-1.5 border border-[#2D8CFF]/50 shadow-md flex items-center justify-center">
+                <img src={state.teamBlue.logo} alt="" className="w-full h-full object-contain" />
+              </div>
               <div>
-                <span className="text-xs font-mono font-bold text-sky-400 uppercase tracking-wider">BLUE CORNER</span>
-                <h2 className="text-xl font-black text-white">{state.teamBlue.name}</h2>
-                <span className="text-xs font-bold text-slate-400 font-mono">[{state.teamBlue.shortCode}]</span>
+                <span className="text-[10px] font-mono font-bold text-[#2D8CFF] uppercase tracking-wider block">BLUE SIDE</span>
+                <h2 className="text-lg font-black text-[#F3F6FA] uppercase tracking-wide leading-tight">{state.teamBlue.name}</h2>
+                <span className="text-xs font-mono font-bold text-[#9FB0C5]">[{state.teamBlue.shortCode}]</span>
               </div>
             </div>
 
-            {/* Series Score Stepper */}
+            {/* Series Points Stepper */}
             <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Series Points</span>
-              <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] uppercase font-bold text-[#9FB0C5] block mb-1">SERIES SCORE</span>
+              <div className="flex items-center gap-1.5 bg-[#0B0F14] px-2.5 py-1 rounded-lg border border-[#273244]">
                 <button 
                   onClick={() => adjustScore('blue', -1)} 
-                  className="p-1 hover:bg-slate-800 text-slate-400 rounded"
+                  className="p-1 hover:bg-[#182231] text-[#9FB0C5] rounded"
                 >
-                  <Minus size={14} />
+                  -
                 </button>
-                <span className="font-mono text-xl font-black text-sky-400 px-2 min-w-[24px] text-center">
+                <span className="font-mono text-lg font-black text-[#2D8CFF] px-2 min-w-[20px] text-center">
                   {state.teamBlue.seriesScore}
                 </span>
                 <button 
                   onClick={() => adjustScore('blue', 1)} 
-                  className="p-1 hover:bg-slate-800 text-sky-400 rounded"
+                  className="p-1 hover:bg-[#182231] text-[#2D8CFF] rounded"
                 >
-                  <Plus size={14} />
+                  +
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Core Match Metrics */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          {/* Quick Metrics: Kills, Towers, Gold */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
             {/* Kills */}
-            <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center justify-center gap-1 mb-1">
-                <Crosshair size={12} className="text-red-400" /> Kills
-              </span>
-              <div className="font-mono text-3xl font-black text-white mb-2">{state.teamBlue.kills}</div>
-              <div className="flex items-center justify-center gap-1">
+            <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] text-center">
+              <span className="text-[10px] font-bold text-[#9FB0C5] uppercase block mb-1">KILLS</span>
+              <div className="font-mono text-3xl font-black text-[#F3F6FA] mb-2">{state.teamBlue.kills}</div>
+              <div className="flex items-center justify-center gap-1.5">
                 <button 
                   onClick={() => adjustKills('blue', -1)}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-bold"
+                  className="px-2.5 py-1 bg-[#182231] hover:bg-[#273244] text-[#9FB0C5] rounded text-xs font-bold"
                 >
                   -1
                 </button>
                 <button 
-                  onClick={() => adjustKills('blue', 1)}
-                  className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold"
+                  onClick={() => triggerSpecial('blue', 'first_blood')}
+                  className="px-3 py-1 bg-[#2D8CFF] hover:bg-blue-600 text-white rounded text-xs font-bold"
                 >
                   +1
                 </button>
@@ -278,21 +295,19 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
             </div>
 
             {/* Towers */}
-            <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center justify-center gap-1 mb-1">
-                <Castle size={12} className="text-amber-400" /> Towers
-              </span>
-              <div className="font-mono text-3xl font-black text-amber-400 mb-2">{state.teamBlue.towers}</div>
-              <div className="flex items-center justify-center gap-1">
+            <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] text-center">
+              <span className="text-[10px] font-bold text-[#9FB0C5] uppercase block mb-1">TOWERS</span>
+              <div className="font-mono text-3xl font-black text-[#F5B942] mb-2">{state.teamBlue.towers}</div>
+              <div className="flex items-center justify-center gap-1.5">
                 <button 
                   onClick={() => adjustTowers('blue', -1)}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-bold"
+                  className="px-2.5 py-1 bg-[#182231] hover:bg-[#273244] text-[#9FB0C5] rounded text-xs font-bold"
                 >
                   -1
                 </button>
                 <button 
-                  onClick={() => adjustTowers('blue', 1)}
-                  className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-bold"
+                  onClick={() => triggerSpecial('blue', 'tower_destroyed')}
+                  className="px-3 py-1 bg-[#F59E0B] hover:bg-amber-600 text-black rounded text-xs font-black"
                 >
                   +1
                 </button>
@@ -300,23 +315,19 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
             </div>
 
             {/* Gold */}
-            <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center justify-center gap-1 mb-1">
-                <Coins size={12} className="text-yellow-400" /> Total Gold
-              </span>
-              <div className="font-mono text-2xl font-black text-yellow-400 mb-2">
-                {state.teamBlue.gold.toLocaleString()}
-              </div>
+            <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] text-center">
+              <span className="text-[10px] font-bold text-[#9FB0C5] uppercase block mb-1">GOLD</span>
+              <div className="font-mono text-2xl font-black text-[#F5B942] mb-2">{formatGold(state.teamBlue.gold)}</div>
               <div className="flex items-center justify-center gap-1">
                 <button 
                   onClick={() => adjustGold('blue', -500)}
-                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-bold font-mono"
+                  className="px-2 py-1 bg-[#182231] hover:bg-[#273244] text-[#9FB0C5] rounded text-[10px] font-mono font-bold"
                 >
                   -500
                 </button>
                 <button 
                   onClick={() => adjustGold('blue', 500)}
-                  className="px-2 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-[11px] font-bold font-mono"
+                  className="px-2 py-1 bg-[#F5B942]/20 text-[#F5B942] hover:bg-[#F5B942]/30 rounded text-[10px] font-mono font-bold border border-[#F5B942]/40"
                 >
                   +500
                 </button>
@@ -324,96 +335,143 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
             </div>
           </div>
 
-          {/* Objectives Quick Triggers */}
-          <div className="bg-slate-950/90 p-4 rounded-xl border border-slate-800">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-3">
-              {isMlbb ? 'MLBB Objectives (Blue)' : 'HOK Objectives (Blue)'}
+          {/* 5 Drafted Heroes 1-Click Kill Bar */}
+          <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] mb-4">
+            <span className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase tracking-wider block mb-2">
+              DRAFTED HEROES (1-CLICK KILL TRIGGER)
             </span>
-            <div className="grid grid-cols-3 gap-2">
-              {objectives.map(obj => {
-                const count = state.teamBlue.objectives[obj.id] || 0;
-                return (
+            <div className="grid grid-cols-5 gap-2">
+              {state.teamBlue.picks.map((slot, idx) => (
+                <div key={idx} className="flex flex-col items-center p-1.5 rounded-lg bg-[#182231] border border-[#273244]">
+                  <div className="w-10 h-10 rounded-md overflow-hidden bg-black/60 mb-1 border border-white/10">
+                    {slot.heroAvatar ? (
+                      <img src={slot.heroAvatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] font-mono text-slate-500">P{idx+1}</div>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold text-[#F3F6FA] truncate max-w-[55px] text-center mb-1">
+                    {slot.heroName || `Hero ${idx+1}`}
+                  </span>
                   <button
-                    key={obj.id}
-                    onClick={() => handleTriggerObjective('blue', obj)}
-                    className="p-2.5 bg-slate-900 hover:bg-sky-950/40 border border-slate-700 hover:border-sky-500/50 rounded-lg text-left transition-all group"
+                    onClick={() => handleSlotKill('blue', idx)}
+                    className="w-full py-0.5 bg-[#2D8CFF] hover:bg-blue-600 text-white rounded text-[9px] font-mono font-black"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xl">{obj.icon}</span>
-                      <span className="font-mono font-black text-sky-400 text-sm bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-500/30">
-                        x{count}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-slate-200 block truncate group-hover:text-sky-300">
-                      +1 {obj.name}
-                    </span>
+                    + KILL
                   </button>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* 1-Click Objective & Steal Buttons */}
+          <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244]">
+            <span className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase tracking-wider block mb-2">
+              OBJECTIVE TRIGGERS (BLUE)
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => triggerSpecial('blue', isMlbb ? 'turtle_secured' : 'tyrant_secured')}
+                className="p-2 bg-[#182231] hover:bg-[#273244] border border-[#273244] rounded-lg text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">{isMlbb ? '🐢' : '🐉'}</span>
+                  <span className="text-xs font-mono font-bold text-[#00D1C7]">
+                    x{state.teamBlue.objectives[isMlbb ? 'turtle' : 'primal_tyrant'] || 0}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-[#F3F6FA] block truncate mt-1">
+                  {isMlbb ? '+ Turtle' : '+ Tyrant'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => triggerSpecial('blue', isMlbb ? 'lord_secured' : 'overlord_secured')}
+                className="p-2 bg-[#182231] hover:bg-[#273244] border border-[#273244] rounded-lg text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">{isMlbb ? '👑' : '🐲'}</span>
+                  <span className="text-xs font-mono font-bold text-[#F5B942]">
+                    x{state.teamBlue.objectives[isMlbb ? 'lord' : 'shadow_overlord'] || 0}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-[#F3F6FA] block truncate mt-1">
+                  {isMlbb ? '+ Lord' : '+ Overlord'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => triggerSpecial('blue', isMlbb ? 'lord_steal' : 'overlord_steal')}
+                className="p-2 bg-[#F59E0B]/20 hover:bg-[#F59E0B]/30 border border-[#F59E0B]/50 rounded-lg text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">⚡</span>
+                  <span className="text-[9px] font-mono font-black text-[#F5B942] uppercase">STEAL</span>
+                </div>
+                <span className="text-[11px] font-black text-[#F5B942] block truncate mt-1">
+                  {isMlbb ? 'Lord Steal' : 'Overlord Steal'}
+                </span>
+              </button>
+            </div>
+          </div>
+
         </div>
 
-        {/* RED TEAM CARD */}
-        <div className="bg-slate-900/80 border-2 border-red-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          {/* Team Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
+        {/* ---------------- RED TEAM COLUMN ---------------- */}
+        <div className="bg-[#121922] border-2 border-[#FF4D67]/40 rounded-xl p-5 shadow-xl relative overflow-hidden">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-[#273244] pb-4 mb-4">
             <div className="flex items-center gap-3">
-              <img 
-                src={state.teamRed.logo} 
-                alt={state.teamRed.name} 
-                className="w-12 h-12 rounded-xl bg-slate-800 p-1 border border-red-500/40 object-contain shadow-md"
-              />
+              <div className="w-12 h-12 rounded-xl bg-[#0B0F14] p-1.5 border border-[#FF4D67]/50 shadow-md flex items-center justify-center">
+                <img src={state.teamRed.logo} alt="" className="w-full h-full object-contain" />
+              </div>
               <div>
-                <span className="text-xs font-mono font-bold text-red-400 uppercase tracking-wider">RED CORNER</span>
-                <h2 className="text-xl font-black text-white">{state.teamRed.name}</h2>
-                <span className="text-xs font-bold text-slate-400 font-mono">[{state.teamRed.shortCode}]</span>
+                <span className="text-[10px] font-mono font-bold text-[#FF4D67] uppercase tracking-wider block">RED SIDE</span>
+                <h2 className="text-lg font-black text-[#F3F6FA] uppercase tracking-wide leading-tight">{state.teamRed.name}</h2>
+                <span className="text-xs font-mono font-bold text-[#9FB0C5]">[{state.teamRed.shortCode}]</span>
               </div>
             </div>
 
-            {/* Series Score Stepper */}
+            {/* Series Points Stepper */}
             <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Series Points</span>
-              <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+              <span className="text-[9px] uppercase font-bold text-[#9FB0C5] block mb-1">SERIES SCORE</span>
+              <div className="flex items-center gap-1.5 bg-[#0B0F14] px-2.5 py-1 rounded-lg border border-[#273244]">
                 <button 
                   onClick={() => adjustScore('red', -1)} 
-                  className="p-1 hover:bg-slate-800 text-slate-400 rounded"
+                  className="p-1 hover:bg-[#182231] text-[#9FB0C5] rounded"
                 >
-                  <Minus size={14} />
+                  -
                 </button>
-                <span className="font-mono text-xl font-black text-red-400 px-2 min-w-[24px] text-center">
+                <span className="font-mono text-lg font-black text-[#FF4D67] px-2 min-w-[20px] text-center">
                   {state.teamRed.seriesScore}
                 </span>
                 <button 
                   onClick={() => adjustScore('red', 1)} 
-                  className="p-1 hover:bg-slate-800 text-red-400 rounded"
+                  className="p-1 hover:bg-[#182231] text-[#FF4D67] rounded"
                 >
-                  <Plus size={14} />
+                  +
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Core Match Metrics */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          {/* Quick Metrics: Kills, Towers, Gold */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
             {/* Kills */}
-            <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center justify-center gap-1 mb-1">
-                <Crosshair size={12} className="text-red-400" /> Kills
-              </span>
-              <div className="font-mono text-3xl font-black text-white mb-2">{state.teamRed.kills}</div>
-              <div className="flex items-center justify-center gap-1">
+            <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] text-center">
+              <span className="text-[10px] font-bold text-[#9FB0C5] uppercase block mb-1">KILLS</span>
+              <div className="font-mono text-3xl font-black text-[#F3F6FA] mb-2">{state.teamRed.kills}</div>
+              <div className="flex items-center justify-center gap-1.5">
                 <button 
                   onClick={() => adjustKills('red', -1)}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-bold"
+                  className="px-2.5 py-1 bg-[#182231] hover:bg-[#273244] text-[#9FB0C5] rounded text-xs font-bold"
                 >
                   -1
                 </button>
                 <button 
-                  onClick={() => adjustKills('red', 1)}
-                  className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold"
+                  onClick={() => triggerSpecial('red', 'first_blood')}
+                  className="px-3 py-1 bg-[#FF4D67] hover:bg-rose-600 text-white rounded text-xs font-bold"
                 >
                   +1
                 </button>
@@ -421,21 +479,19 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
             </div>
 
             {/* Towers */}
-            <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center justify-center gap-1 mb-1">
-                <Castle size={12} className="text-amber-400" /> Towers
-              </span>
-              <div className="font-mono text-3xl font-black text-amber-400 mb-2">{state.teamRed.towers}</div>
-              <div className="flex items-center justify-center gap-1">
+            <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] text-center">
+              <span className="text-[10px] font-bold text-[#9FB0C5] uppercase block mb-1">TOWERS</span>
+              <div className="font-mono text-3xl font-black text-[#F5B942] mb-2">{state.teamRed.towers}</div>
+              <div className="flex items-center justify-center gap-1.5">
                 <button 
                   onClick={() => adjustTowers('red', -1)}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-bold"
+                  className="px-2.5 py-1 bg-[#182231] hover:bg-[#273244] text-[#9FB0C5] rounded text-xs font-bold"
                 >
                   -1
                 </button>
                 <button 
-                  onClick={() => adjustTowers('red', 1)}
-                  className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-bold"
+                  onClick={() => triggerSpecial('red', 'tower_destroyed')}
+                  className="px-3 py-1 bg-[#F59E0B] hover:bg-amber-600 text-black rounded text-xs font-black"
                 >
                   +1
                 </button>
@@ -443,23 +499,19 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
             </div>
 
             {/* Gold */}
-            <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-center">
-              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center justify-center gap-1 mb-1">
-                <Coins size={12} className="text-yellow-400" /> Total Gold
-              </span>
-              <div className="font-mono text-2xl font-black text-yellow-400 mb-2">
-                {state.teamRed.gold.toLocaleString()}
-              </div>
+            <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] text-center">
+              <span className="text-[10px] font-bold text-[#9FB0C5] uppercase block mb-1">GOLD</span>
+              <div className="font-mono text-2xl font-black text-[#F5B942] mb-2">{formatGold(state.teamRed.gold)}</div>
               <div className="flex items-center justify-center gap-1">
                 <button 
                   onClick={() => adjustGold('red', -500)}
-                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-bold font-mono"
+                  className="px-2 py-1 bg-[#182231] hover:bg-[#273244] text-[#9FB0C5] rounded text-[10px] font-mono font-bold"
                 >
                   -500
                 </button>
                 <button 
                   onClick={() => adjustGold('red', 500)}
-                  className="px-2 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-[11px] font-bold font-mono"
+                  className="px-2 py-1 bg-[#F5B942]/20 text-[#F5B942] hover:bg-[#F5B942]/30 rounded text-[10px] font-mono font-bold border border-[#F5B942]/40"
                 >
                   +500
                 </button>
@@ -467,102 +519,308 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
             </div>
           </div>
 
-          {/* Objectives Quick Triggers */}
-          <div className="bg-slate-950/90 p-4 rounded-xl border border-slate-800">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-3">
-              {isMlbb ? 'MLBB Objectives (Red)' : 'HOK Objectives (Red)'}
+          {/* 5 Drafted Heroes 1-Click Kill Bar */}
+          <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244] mb-4">
+            <span className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase tracking-wider block mb-2">
+              DRAFTED HEROES (1-CLICK KILL TRIGGER)
             </span>
-            <div className="grid grid-cols-3 gap-2">
-              {objectives.map(obj => {
-                const count = state.teamRed.objectives[obj.id] || 0;
-                return (
+            <div className="grid grid-cols-5 gap-2">
+              {state.teamRed.picks.map((slot, idx) => (
+                <div key={idx} className="flex flex-col items-center p-1.5 rounded-lg bg-[#182231] border border-[#273244]">
+                  <div className="w-10 h-10 rounded-md overflow-hidden bg-black/60 mb-1 border border-white/10">
+                    {slot.heroAvatar ? (
+                      <img src={slot.heroAvatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] font-mono text-slate-500">P{idx+1}</div>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold text-[#F3F6FA] truncate max-w-[55px] text-center mb-1">
+                    {slot.heroName || `Hero ${idx+1}`}
+                  </span>
                   <button
-                    key={obj.id}
-                    onClick={() => handleTriggerObjective('red', obj)}
-                    className="p-2.5 bg-slate-900 hover:bg-red-950/40 border border-slate-700 hover:border-red-500/50 rounded-lg text-left transition-all group"
+                    onClick={() => handleSlotKill('red', idx)}
+                    className="w-full py-0.5 bg-[#FF4D67] hover:bg-rose-600 text-white rounded text-[9px] font-mono font-black"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xl">{obj.icon}</span>
-                      <span className="font-mono font-black text-red-400 text-sm bg-red-950/60 px-1.5 py-0.5 rounded border border-red-500/30">
-                        x{count}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-slate-200 block truncate group-hover:text-red-300">
-                      +1 {obj.name}
-                    </span>
+                    + KILL
                   </button>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* 1-Click Objective & Steal Buttons */}
+          <div className="bg-[#0B0F14] p-3 rounded-xl border border-[#273244]">
+            <span className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase tracking-wider block mb-2">
+              OBJECTIVE TRIGGERS (RED)
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => triggerSpecial('red', isMlbb ? 'turtle_secured' : 'tyrant_secured')}
+                className="p-2 bg-[#182231] hover:bg-[#273244] border border-[#273244] rounded-lg text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">{isMlbb ? '🐢' : '🐉'}</span>
+                  <span className="text-xs font-mono font-bold text-[#00D1C7]">
+                    x{state.teamRed.objectives[isMlbb ? 'turtle' : 'primal_tyrant'] || 0}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-[#F3F6FA] block truncate mt-1">
+                  {isMlbb ? '+ Turtle' : '+ Tyrant'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => triggerSpecial('red', isMlbb ? 'lord_secured' : 'overlord_secured')}
+                className="p-2 bg-[#182231] hover:bg-[#273244] border border-[#273244] rounded-lg text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">{isMlbb ? '👑' : '🐲'}</span>
+                  <span className="text-xs font-mono font-bold text-[#F5B942]">
+                    x{state.teamRed.objectives[isMlbb ? 'lord' : 'shadow_overlord'] || 0}
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-[#F3F6FA] block truncate mt-1">
+                  {isMlbb ? '+ Lord' : '+ Overlord'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => triggerSpecial('red', isMlbb ? 'lord_steal' : 'overlord_steal')}
+                className="p-2 bg-[#F59E0B]/20 hover:bg-[#F59E0B]/30 border border-[#F59E0B]/50 rounded-lg text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">⚡</span>
+                  <span className="text-[9px] font-mono font-black text-[#F5B942] uppercase">STEAL</span>
+                </div>
+                <span className="text-[11px] font-black text-[#F5B942] block truncate mt-1">
+                  {isMlbb ? 'Lord Steal' : 'Overlord Steal'}
+                </span>
+              </button>
+            </div>
+          </div>
+
         </div>
 
       </div>
 
-      {/* Realtime Event History Timeline */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+      {/* ============================================================== */}
+      {/* 3. BROADCAST EVENT COMMAND PAD (1-CLICK OVERLAY TRIGGERS)      */}
+      {/* ============================================================== */}
+      <div className="bg-[#121922] border border-[#273244] rounded-xl p-5 shadow-xl">
+        <div className="flex items-center justify-between border-b border-[#273244] pb-3 mb-4">
           <div className="flex items-center gap-2">
-            <History size={18} className="text-slate-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Live Match Event History</h3>
-            <span className="text-xs font-mono text-slate-400">({state.events.length} events logged)</span>
+            <Zap size={18} className="text-[#F5B942]" />
+            <h3 className="text-sm font-black text-[#F3F6FA] uppercase tracking-wider">
+              1-CLICK BROADCAST EVENT COMMAND PAD
+            </h3>
+          </div>
+
+          {/* Active Target Team Switcher */}
+          <div className="flex items-center gap-2 bg-[#0B0F14] p-1 rounded-lg border border-[#273244]">
+            <span className="text-[10px] font-mono text-[#9FB0C5] px-2 font-bold uppercase">TARGET TEAM:</span>
+            <button
+              onClick={() => setActiveTabTeam('blue')}
+              className={`px-3 py-1 rounded text-xs font-black transition-all ${
+                activeTabTeam === 'blue'
+                  ? 'bg-[#2D8CFF] text-white shadow-md'
+                  : 'text-[#9FB0C5] hover:text-white'
+              }`}
+            >
+              {state.teamBlue.shortCode || 'BLUE'}
+            </button>
+            <button
+              onClick={() => setActiveTabTeam('red')}
+              className={`px-3 py-1 rounded text-xs font-black transition-all ${
+                activeTabTeam === 'red'
+                  ? 'bg-[#FF4D67] text-white shadow-md'
+                  : 'text-[#9FB0C5] hover:text-white'
+              }`}
+            >
+              {state.teamRed.shortCode || 'RED'}
+            </button>
+          </div>
+        </div>
+
+        {/* Action Pad Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          {/* First Blood */}
+          <button
+            onClick={() => triggerSpecial(activeTabTeam, 'first_blood')}
+            className="p-3 bg-gradient-to-b from-[#2a1d0d] to-[#182231] border border-[#F5B942]/60 hover:border-[#F5B942] rounded-xl flex flex-col items-center justify-center text-center transition-all group shadow-md"
+          >
+            <span className="text-xl mb-1">🩸</span>
+            <span className="text-xs font-black text-[#F5B942] group-hover:scale-105 transition-transform uppercase">
+              FIRST BLOOD
+            </span>
+            <span className="text-[9px] font-mono text-[#9FB0C5] mt-0.5">High Impact</span>
+          </button>
+
+          {/* Double Kill */}
+          <button
+            onClick={() => triggerSpecial(activeTabTeam, 'double_kill')}
+            className="p-3 bg-[#182231] hover:bg-[#273244] border border-[#273244] hover:border-[#2D8CFF]/50 rounded-xl flex flex-col items-center justify-center text-center transition-all group shadow-md"
+          >
+            <span className="text-xl mb-1">⚔️</span>
+            <span className="text-xs font-black text-[#F3F6FA] group-hover:text-[#2D8CFF] uppercase">
+              DOUBLE KILL
+            </span>
+            <span className="text-[9px] font-mono text-[#9FB0C5] mt-0.5">+1 Kill</span>
+          </button>
+
+          {/* Triple Kill */}
+          <button
+            onClick={() => triggerSpecial(activeTabTeam, 'triple_kill')}
+            className="p-3 bg-[#182231] hover:bg-[#273244] border border-[#273244] hover:border-[#00D1C7]/50 rounded-xl flex flex-col items-center justify-center text-center transition-all group shadow-md"
+          >
+            <span className="text-xl mb-1">⚡</span>
+            <span className="text-xs font-black text-[#00D1C7] group-hover:scale-105 transition-transform uppercase">
+              TRIPLE KILL
+            </span>
+            <span className="text-[9px] font-mono text-[#9FB0C5] mt-0.5">Electric Flare</span>
+          </button>
+
+          {/* Maniac */}
+          <button
+            onClick={() => triggerSpecial(activeTabTeam, 'maniac')}
+            className="p-3 bg-gradient-to-b from-[#2e1905] to-[#182231] border border-[#F59E0B]/60 hover:border-[#F59E0B] rounded-xl flex flex-col items-center justify-center text-center transition-all group shadow-md"
+          >
+            <span className="text-xl mb-1">🔥</span>
+            <span className="text-xs font-black text-[#F59E0B] group-hover:scale-105 transition-transform uppercase">
+              MANIAC
+            </span>
+            <span className="text-[9px] font-mono text-[#9FB0C5] mt-0.5">4x Streak</span>
+          </button>
+
+          {/* Savage / Penta Kill */}
+          <button
+            onClick={() => triggerSpecial(activeTabTeam, 'savage')}
+            className="p-3 bg-gradient-to-b from-[#3a2707] to-[#182231] border-2 border-[#F5B942] rounded-xl flex flex-col items-center justify-center text-center transition-all group shadow-lg glow-gold"
+          >
+            <Crown size={22} className="text-[#F5B942] mb-1 animate-bounce" />
+            <span className="text-xs font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-[#F5B942] group-hover:scale-105 transition-transform uppercase">
+              {isMlbb ? 'SAVAGE' : 'PENTA KILL'}
+            </span>
+            <span className="text-[9px] font-mono text-[#F5B942] mt-0.5">Max Intensity</span>
+          </button>
+
+          {/* Shutdown */}
+          <button
+            onClick={() => triggerSpecial(activeTabTeam, 'shutdown')}
+            className="p-3 bg-[#182231] hover:bg-[#273244] border border-[#273244] hover:border-[#EF4444]/50 rounded-xl flex flex-col items-center justify-center text-center transition-all group shadow-md"
+          >
+            <ShieldAlert size={20} className="text-[#EF4444] mb-1" />
+            <span className="text-xs font-black text-[#EF4444] uppercase">
+              SHUTDOWN
+            </span>
+            <span className="text-[9px] font-mono text-[#9FB0C5] mt-0.5">Bounty Ended</span>
+          </button>
+
+          {/* Wipeout */}
+          <button
+            onClick={() => triggerSpecial(activeTabTeam, 'wipeout')}
+            className="p-3 bg-[#182231] hover:bg-[#273244] border border-[#273244] hover:border-[#F59E0B]/50 rounded-xl flex flex-col items-center justify-center text-center transition-all group shadow-md"
+          >
+            <Skull size={20} className="text-[#9FB0C5] mb-1" />
+            <span className="text-xs font-black text-[#F3F6FA] uppercase">
+              WIPEOUT
+            </span>
+            <span className="text-[9px] font-mono text-[#9FB0C5] mt-0.5">Team Aced</span>
+          </button>
+        </div>
+
+        {/* Victory End Match Bar */}
+        <div className="mt-4 pt-4 border-t border-[#273244] flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Trophy size={16} className="text-[#F5B942]" />
+            <span className="text-xs font-mono font-bold text-[#9FB0C5] uppercase">
+              MATCH END CONTROLS:
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => triggerSpecial('blue', 'victory')}
+              className="px-4 py-2 bg-[#2D8CFF]/20 hover:bg-[#2D8CFF]/30 border border-[#2D8CFF]/60 text-[#2D8CFF] text-xs font-black rounded-lg transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <Trophy size={14} />
+              DECLARE {state.teamBlue.shortCode || 'BLUE'} VICTORY
+            </button>
+
+            <button
+              onClick={() => triggerSpecial('red', 'victory')}
+              className="px-4 py-2 bg-[#FF4D67]/20 hover:bg-[#FF4D67]/30 border border-[#FF4D67]/60 text-[#FF4D67] text-xs font-black rounded-lg transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <Trophy size={14} />
+              DECLARE {state.teamRed.shortCode || 'RED'} VICTORY
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 4. REALTIME EVENT HISTORY TIMELINE & UNDO                      */}
+      {/* ============================================================== */}
+      <div className="bg-[#121922] border border-[#273244] rounded-xl p-5 shadow-xl">
+        <div className="flex items-center justify-between border-b border-[#273244] pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            <History size={16} className="text-[#9FB0C5]" />
+            <h3 className="text-xs font-mono font-bold text-[#F3F6FA] uppercase tracking-wider">
+              MATCH AUDIT LOG
+            </h3>
+            <span className="text-xs font-mono text-[#9FB0C5]">({state.events.length} recorded events)</span>
           </div>
 
           <button
             onClick={handleUndo}
             disabled={state.events.length === 0}
-            className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 disabled:opacity-40"
+            className="text-xs font-mono font-bold text-[#F5B942] hover:text-amber-300 flex items-center gap-1.5 disabled:opacity-40"
           >
             <Undo2 size={13} />
-            Undo Recent
+            Undo Recent Action
           </button>
         </div>
 
         {state.events.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-500 font-mono">
-            No events registered yet. Match is ready.
+          <div className="text-center py-6 text-xs text-[#9FB0C5] font-mono">
+            No events logged yet. Match ready to begin.
           </div>
         ) : (
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-2">
-            {state.events.slice(0, 10).map((evt) => (
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-2">
+            {state.events.slice(0, 15).map((evt) => (
               <div 
                 key={evt.id}
                 className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-mono border ${
                   evt.team === 'blue' 
-                    ? 'bg-sky-950/30 border-sky-500/30 text-sky-200' 
-                    : 'bg-red-950/30 border-red-500/30 text-red-200'
+                    ? 'bg-[#182231] border-[#2D8CFF]/30 text-[#F3F6FA]' 
+                    : 'bg-[#182231] border-[#FF4D67]/30 text-[#F3F6FA]'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-bold text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-[#9FB0C5] bg-[#0B0F14] px-1.5 py-0.5 rounded border border-[#273244]">
                     {formatTime(evt.gameTimeSeconds)}
                   </span>
-                  <span className="font-bold uppercase tracking-wider">
+                  <span className={`font-black uppercase tracking-wider ${evt.team === 'blue' ? 'text-[#2D8CFF]' : 'text-[#FF4D67]'}`}>
                     {evt.team === 'blue' ? state.teamBlue.shortCode : state.teamRed.shortCode}
                   </span>
                   <span>
-                    {evt.type === 'kill' && (
-                      <span className="flex items-center gap-1">
-                        <Crosshair size={13} className="text-red-400" />
-                        Kill by {evt.killerHero?.name || 'Unknown'} 
+                    {evt.headline ? (
+                      <span className="font-bold text-[#F5B942]">{evt.headline}</span>
+                    ) : evt.type === 'kill' ? (
+                      <span>
+                        Kill by {evt.killerHero?.name || 'Player'} 
                         {evt.victimHero && ` on ${evt.victimHero.name}`}
-                        {evt.multikill && evt.multikill !== 'single' && (
-                          <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-black font-extrabold rounded text-[10px] uppercase">
-                            {evt.multikill}
-                          </span>
-                        )}
                       </span>
-                    )}
-                    {evt.type === 'objective' && (
+                    ) : evt.type === 'objective' ? (
                       <span>Secured {evt.objective?.icon} {evt.objective?.name}</span>
-                    )}
-                    {evt.type === 'tower' && (
-                      <span>Destroyed enemy turret</span>
+                    ) : evt.type === 'tower' ? (
+                      <span>Turret Destroyed</span>
+                    ) : (
+                      <span>Event Logged</span>
                     )}
                   </span>
                 </div>
 
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-[#9FB0C5]">
                   {new Date(evt.realTimestamp).toLocaleTimeString()}
                 </span>
               </div>
@@ -571,83 +829,104 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
         )}
       </div>
 
-      {/* KILL REGISTRATION MODAL */}
+      {/* ============================================================== */}
+      {/* 5. CUSTOM KILL REGISTRATION MODAL                              */}
+      {/* ============================================================== */}
       {isKillModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-2xl p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <Crosshair size={20} className="text-red-500" />
-                REGISTER KILL EVENT
+          <div className="bg-[#121922] border border-[#273244] w-full max-w-xl rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#273244] pb-3">
+              <h3 className="text-base font-black text-[#F3F6FA] flex items-center gap-2 uppercase tracking-wide">
+                <Crosshair size={18} className="text-[#FF4D67]" />
+                CUSTOM KILL REGISTRATION
               </h3>
               <button 
                 onClick={() => setIsKillModalOpen(false)}
-                className="text-slate-400 hover:text-white font-bold"
+                className="text-[#9FB0C5] hover:text-white font-bold"
               >
                 ✕
               </button>
             </div>
 
-            {/* Step 1: Select Scoring Team */}
+            {/* Target Team */}
             <div>
-              <label className="text-xs font-bold text-slate-300 uppercase block mb-2">Scoring Team</label>
+              <label className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase block mb-1.5">
+                SCORING TEAM
+              </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setSelectedTeam('blue')}
-                  className={`p-3 rounded-xl border text-center font-bold text-sm transition-all ${
-                    selectedTeam === 'blue'
-                      ? 'bg-sky-600/30 border-sky-400 text-sky-200 shadow-md'
-                      : 'bg-slate-950 border-slate-800 text-slate-400'
+                  onClick={() => setActiveTabTeam('blue')}
+                  className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all ${
+                    activeTabTeam === 'blue'
+                      ? 'bg-[#2D8CFF]/20 border-[#2D8CFF] text-[#2D8CFF]'
+                      : 'bg-[#0B0F14] border-[#273244] text-[#9FB0C5]'
                   }`}
                 >
-                  🔵 {state.teamBlue.name}
+                  {state.teamBlue.name}
                 </button>
                 <button
-                  onClick={() => setSelectedTeam('red')}
-                  className={`p-3 rounded-xl border text-center font-bold text-sm transition-all ${
-                    selectedTeam === 'red'
-                      ? 'bg-red-600/30 border-red-400 text-red-200 shadow-md'
-                      : 'bg-slate-950 border-slate-800 text-slate-400'
+                  onClick={() => setActiveTabTeam('red')}
+                  className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all ${
+                    activeTabTeam === 'red'
+                      ? 'bg-[#FF4D67]/20 border-[#FF4D67] text-[#FF4D67]'
+                      : 'bg-[#0B0F14] border-[#273244] text-[#9FB0C5]'
                   }`}
                 >
-                  🔴 {state.teamRed.name}
+                  {state.teamRed.name}
                 </button>
               </div>
             </div>
 
-            {/* Step 2: Killer Hero */}
+            {/* Killer Selection */}
             <div>
-              <label className="text-xs font-bold text-slate-300 uppercase block mb-2">Killer Hero (Optional)</label>
-              <div className="grid grid-cols-4 gap-2 max-h-36 overflow-y-auto p-1 bg-slate-950 rounded-xl border border-slate-800">
-                {heroes.map(hero => (
+              <label className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase block mb-1.5">
+                KILLER HERO ({activeTabTeam.toUpperCase()})
+              </label>
+              <div className="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto p-1 bg-[#0B0F14] rounded-xl border border-[#273244]">
+                {(activeTabTeam === 'blue' ? state.teamBlue.picks : state.teamRed.picks).map((slot, i) => (
                   <button
-                    key={hero.id}
-                    onClick={() => setSelectedKiller(hero)}
-                    className={`p-2 rounded-lg text-left text-xs font-medium border flex items-center gap-2 transition-all ${
-                      selectedKiller?.id === hero.id
-                        ? 'bg-sky-600/40 border-sky-400 text-white'
-                        : 'border-slate-800 hover:bg-slate-900 text-slate-300'
+                    key={i}
+                    onClick={() => {
+                      if (slot.heroId) {
+                        const hero = heroes.find(h => h.id === slot.heroId) || {
+                          id: slot.heroId,
+                          name: slot.heroName || 'Hero',
+                          game: state.game,
+                          primaryRole: 'UNKNOWN',
+                          avatar: slot.heroAvatar || ''
+                        };
+                        setSelectedKiller(hero);
+                      }
+                    }}
+                    className={`p-1.5 rounded-lg border text-center flex flex-col items-center transition-all ${
+                      selectedKiller?.id === slot.heroId && slot.heroId
+                        ? 'border-[#00D1C7] bg-[#00D1C7]/15'
+                        : 'border-[#273244] hover:bg-[#182231]'
                     }`}
                   >
-                    <img src={hero.avatar} alt="" className="w-5 h-5 rounded-full" />
-                    <span className="truncate">{hero.name}</span>
+                    <div className="w-8 h-8 rounded overflow-hidden bg-black mb-1">
+                      {slot.heroAvatar && <img src={slot.heroAvatar} alt="" className="w-full h-full object-cover" />}
+                    </div>
+                    <span className="text-[9px] font-bold text-[#F3F6FA] truncate max-w-[50px]">{slot.heroName || `Slot ${i+1}`}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Step 3: Multikill Banner Tier */}
+            {/* Multikill Tier */}
             <div>
-              <label className="text-xs font-bold text-slate-300 uppercase block mb-2">Multikill Announcement</label>
+              <label className="text-[10px] font-mono font-bold text-[#9FB0C5] uppercase block mb-1.5">
+                MULTIKILL TIER
+              </label>
               <div className="grid grid-cols-4 gap-2">
-                {(['single', 'first_blood', 'double', 'triple', 'maniac', 'savage', 'wipeout'] as MultikillType[]).map(type => (
+                {(['single', 'double', 'triple', 'maniac', 'savage', 'first_blood'] as MultikillType[]).map(type => (
                   <button
                     key={type}
-                    onClick={() => setMultikillType(type)}
-                    className={`py-1.5 px-2 rounded text-[11px] font-bold uppercase transition-all ${
-                      multikillType === type
-                        ? 'bg-amber-500 text-black shadow-md'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    onClick={() => setSelectedMultikill(type)}
+                    className={`py-1.5 px-2 rounded-lg border text-[10px] font-mono font-bold uppercase transition-all ${
+                      selectedMultikill === type
+                        ? 'bg-[#F5B942]/20 border-[#F5B942] text-[#F5B942]'
+                        : 'bg-[#0B0F14] border-[#273244] text-[#9FB0C5] hover:text-white'
                     }`}
                   >
                     {type.replace('_', ' ')}
@@ -656,19 +935,19 @@ export const LiveControl: React.FC<LiveControlProps> = ({ state }) => {
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            {/* Submit */}
+            <div className="pt-3 border-t border-[#273244] flex items-center justify-end gap-3">
               <button
                 onClick={() => setIsKillModalOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg"
+                className="px-4 py-2 bg-[#182231] hover:bg-[#273244] text-[#9FB0C5] text-xs font-bold rounded-lg"
               >
                 Cancel
               </button>
               <button
-                onClick={handleRegisterKill}
-                className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-extrabold rounded-lg shadow-lg flex items-center gap-2"
+                onClick={handleRegisterDetailedKill}
+                className="px-5 py-2 bg-[#00D1C7] hover:bg-teal-500 text-black text-xs font-black rounded-lg shadow-md"
               >
-                Confirm Kill
+                Log Kill Event
               </button>
             </div>
           </div>

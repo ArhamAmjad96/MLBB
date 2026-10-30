@@ -1,6 +1,6 @@
 import React from 'react';
 import { useMatchState } from '../hooks/useMatchState';
-import { formatTime, formatGold } from '../utils/formatters';
+import { formatTime } from '../utils/formatters';
 
 export const HudOverlay: React.FC = () => {
   const { state } = useMatchState();
@@ -17,137 +17,186 @@ export const HudOverlay: React.FC = () => {
   return (
     <div className="overlay-canvas bg-transparent select-none">
       
-      {/* Top HUD Banner (Centered 1920x1080 Viewport) */}
-      <div className="w-full flex items-start justify-center pt-5 px-12">
-        <div className="flex items-stretch shadow-[0_15px_35px_rgba(0,0,0,0.85)] rounded-2xl overflow-hidden border border-white/10 bg-[#0a0e17]/95 backdrop-blur-md">
+      {/* Centered Top Scoreboard HUD (1920x1080 Viewport) */}
+      <div className="w-full flex items-start justify-center pt-3 px-8">
+        <div className="flex items-stretch h-[68px] rounded-xl overflow-hidden glass-top-hud shadow-[0_16px_40px_rgba(0,0,0,0.85)] border border-[#273244]">
           
           {/* ================= BLUE TEAM WING ================= */}
-          <div className="flex items-center gap-4 pl-6 pr-4 py-2 bg-gradient-to-r from-sky-950/80 to-slate-900 border-r border-sky-500/30">
-            {/* Logo */}
-            <div className="w-12 h-12 rounded-xl bg-slate-900/90 p-1.5 border border-sky-400/40 shadow-md flex items-center justify-center">
-              <img src={teamBlue.logo} alt="" className="w-full h-full object-contain" />
+          <div className="flex items-center gap-3.5 pl-4 pr-3 py-1.5 bg-gradient-to-r from-[#2D8CFF]/15 via-transparent to-transparent">
+            
+            {/* Team Edge Accent Bar */}
+            <div className="w-1.5 h-10 rounded-full bg-[#2D8CFF] shadow-[0_0_10px_#2D8CFF]" />
+
+            {/* Team Logo */}
+            <div className="w-11 h-11 rounded-lg bg-[#0B0F14]/90 p-1 border border-[#2D8CFF]/40 shadow-inner flex items-center justify-center shrink-0">
+              <img 
+                src={teamBlue.logo} 
+                alt="" 
+                className="w-full h-full object-contain filter drop-shadow" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=Blue';
+                }}
+              />
             </div>
 
-            {/* Team Info */}
-            <div className="text-left">
-              <span className="text-[11px] font-mono font-bold tracking-widest text-sky-400 uppercase">
-                {teamBlue.shortCode}
+            {/* Team Names */}
+            <div className="text-left min-w-[90px] max-w-[150px]">
+              <span className="text-[10px] font-mono font-bold tracking-widest text-[#2D8CFF] uppercase block leading-none mb-0.5">
+                {teamBlue.shortCode || 'BLUE'}
               </span>
-              <h2 className="text-lg font-black text-white uppercase tracking-wide leading-tight">
+              <h2 className="text-sm font-black text-[#F3F6FA] uppercase tracking-wide truncate leading-tight">
                 {teamBlue.name}
               </h2>
             </div>
 
-            {/* Series Score Dots */}
-            <div className="flex items-center gap-1.5 ml-2 px-2.5 py-1 bg-slate-950/80 rounded-lg border border-sky-500/30">
-              <span className="text-[10px] font-mono text-slate-400 font-bold mr-1">PTS</span>
-              <span className="text-xl font-mono font-black text-sky-400">{teamBlue.seriesScore}</span>
+            {/* Series Score Badge */}
+            <div className="flex items-center gap-1 px-2 py-1 bg-[#121922]/90 rounded-md border border-[#273244]">
+              <span className="text-[9px] font-mono font-bold text-[#9FB0C5]">SERIES</span>
+              <span className="text-sm font-mono font-black text-[#2D8CFF]">{teamBlue.seriesScore}</span>
             </div>
 
-            {/* Kills Counter (Hero Metric) */}
-            <div className="px-4 py-1.5 bg-gradient-to-b from-sky-600 to-sky-800 text-white rounded-xl shadow-lg border border-sky-400/50 flex flex-col items-center justify-center min-w-[58px]">
-              <span className="text-[9px] uppercase tracking-wider font-extrabold text-sky-200">KILLS</span>
-              <span className="text-2xl font-black font-mono leading-none tracking-tight">{teamBlue.kills}</span>
-            </div>
-
-            {/* Secondary Stats (Gold, Towers, Objectives) */}
-            <div className="flex items-center gap-3 text-xs font-mono font-bold px-3 py-1 bg-slate-950/60 rounded-xl border border-slate-800">
-              {/* Gold */}
-              <div className="flex items-center gap-1 text-yellow-400">
-                <span>💰</span>
-                <span>{formatGold(teamBlue.gold)}</span>
-              </div>
-
+            {/* Compact Secondary Indicators (Towers & Bosses) */}
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-[#0B0F14]/80 rounded-md border border-[#273244]/80 text-[11px] font-mono font-bold">
               {/* Towers */}
-              <div className="flex items-center gap-1 text-amber-400">
-                <span>🏰</span>
-                <span>{teamBlue.towers}</span>
+              <div className="flex items-center gap-1 text-[#F3F6FA]" title="Turrets Destroyed">
+                <span className="text-xs">🏰</span>
+                <span className="text-[#9FB0C5]">{teamBlue.towers}</span>
               </div>
+
+              <div className="w-[1px] h-3 bg-[#273244]" />
 
               {/* Objectives */}
               {isMlbb ? (
                 <div className="flex items-center gap-2">
-                  <span title="Turtle">🐢 {teamBlue.objectives['turtle'] || 0}</span>
-                  <span title="Lord">👑 {teamBlue.objectives['lord'] || 0}</span>
+                  <div className="flex items-center gap-0.5" title="Turtle Secured">
+                    <span className="text-xs">🐢</span>
+                    <span className="text-[#00D1C7]">{teamBlue.objectives['turtle'] || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-0.5" title="Lord Secured">
+                    <span className="text-xs">👑</span>
+                    <span className="text-[#F5B942]">{teamBlue.objectives['lord'] || 0}</span>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <span title="Tyrant">🐉 {teamBlue.objectives['primal_tyrant'] || 0}</span>
-                  <span title="Overlord">🐲 {teamBlue.objectives['shadow_overlord'] || 0}</span>
+                  <div className="flex items-center gap-0.5" title="Tyrant Secured">
+                    <span className="text-xs">🐉</span>
+                    <span className="text-[#00D1C7]">{teamBlue.objectives['primal_tyrant'] || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-0.5" title="Overlord Secured">
+                    <span className="text-xs">🐲</span>
+                    <span className="text-[#F5B942]">{teamBlue.objectives['shadow_overlord'] || 0}</span>
+                  </div>
                 </div>
               )}
             </div>
+
+            {/* Kills Counter (Hero Metric) */}
+            <div className="px-3.5 py-1 bg-gradient-to-b from-[#2D8CFF] to-[#1a5bc9] text-white rounded-lg shadow-[0_0_15px_rgba(45,140,255,0.4)] border border-[#2D8CFF]/60 flex flex-col items-center justify-center min-w-[50px]">
+              <span className="text-[8px] uppercase tracking-wider font-extrabold text-blue-100 leading-none">KILLS</span>
+              <span className="text-2xl font-black font-mono leading-none tracking-tight text-white">{teamBlue.kills}</span>
+            </div>
+
           </div>
 
-          {/* ================= CENTER MATCH CLOCK & TOURNAMENT ================= */}
-          <div className="px-6 py-2 bg-slate-950 flex flex-col items-center justify-center min-w-[170px] border-x border-slate-800">
-            <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">
-              GAME {currentGameNumber} • {format}
-            </span>
-            <div className="text-2xl font-mono font-black text-amber-400 tracking-widest leading-tight">
+          {/* ================= CENTER MATCH CLOCK & TOURNAMENT HUB ================= */}
+          <div className="px-5 py-1.5 bg-[#0B0F14]/95 flex flex-col items-center justify-center min-w-[150px] border-x border-[#273244] shadow-inner">
+            
+            {/* Game Number & Format Pill */}
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00D1C7] animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#00D1C7]">
+                GAME {currentGameNumber} • {format}
+              </span>
+            </div>
+
+            {/* Match Clock */}
+            <div className="text-2xl font-mono font-black text-[#F5B942] tracking-wider leading-none drop-shadow-[0_2px_8px_rgba(245,185,66,0.4)]">
               {formatTime(clockSeconds)}
             </div>
-            <span className="text-[8px] font-mono text-slate-500 uppercase tracking-wider truncate max-w-[140px]">
-              {tournamentName}
+
+            {/* Tournament Label */}
+            <span className="text-[8px] font-mono font-bold text-[#9FB0C5] uppercase tracking-widest truncate max-w-[130px] mt-0.5">
+              {tournamentName || 'MARK47 PRO LEAGUE'}
             </span>
           </div>
 
           {/* ================= RED TEAM WING ================= */}
-          <div className="flex items-center gap-4 pl-4 pr-6 py-2 bg-gradient-to-l from-red-950/80 to-slate-900 border-l border-red-500/30">
-            {/* Secondary Stats (Objectives, Towers, Gold) */}
-            <div className="flex items-center gap-3 text-xs font-mono font-bold px-3 py-1 bg-slate-950/60 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-3.5 pl-3 pr-4 py-1.5 bg-gradient-to-l from-[#FF4D67]/15 via-transparent to-transparent">
+            
+            {/* Kills Counter (Hero Metric) */}
+            <div className="px-3.5 py-1 bg-gradient-to-b from-[#FF4D67] to-[#c72740] text-white rounded-lg shadow-[0_0_15px_rgba(255,77,103,0.4)] border border-[#FF4D67]/60 flex flex-col items-center justify-center min-w-[50px]">
+              <span className="text-[8px] uppercase tracking-wider font-extrabold text-red-100 leading-none">KILLS</span>
+              <span className="text-2xl font-black font-mono leading-none tracking-tight text-white">{teamRed.kills}</span>
+            </div>
+
+            {/* Compact Secondary Indicators (Objectives & Towers) */}
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-[#0B0F14]/80 rounded-md border border-[#273244]/80 text-[11px] font-mono font-bold">
               {/* Objectives */}
               {isMlbb ? (
                 <div className="flex items-center gap-2">
-                  <span title="Lord">{teamRed.objectives['lord'] || 0} 👑</span>
-                  <span title="Turtle">{teamRed.objectives['turtle'] || 0} 🐢</span>
+                  <div className="flex items-center gap-0.5" title="Lord Secured">
+                    <span className="text-[#F5B942]">{teamRed.objectives['lord'] || 0}</span>
+                    <span className="text-xs">👑</span>
+                  </div>
+                  <div className="flex items-center gap-0.5" title="Turtle Secured">
+                    <span className="text-[#00D1C7]">{teamRed.objectives['turtle'] || 0}</span>
+                    <span className="text-xs">🐢</span>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <span title="Overlord">{teamRed.objectives['shadow_overlord'] || 0} 🐲</span>
-                  <span title="Tyrant">{teamRed.objectives['primal_tyrant'] || 0} 🐉</span>
+                  <div className="flex items-center gap-0.5" title="Overlord Secured">
+                    <span className="text-[#F5B942]">{teamRed.objectives['shadow_overlord'] || 0}</span>
+                    <span className="text-xs">🐲</span>
+                  </div>
+                  <div className="flex items-center gap-0.5" title="Tyrant Secured">
+                    <span className="text-[#00D1C7]">{teamRed.objectives['primal_tyrant'] || 0}</span>
+                    <span className="text-xs">🐉</span>
+                  </div>
                 </div>
               )}
 
+              <div className="w-[1px] h-3 bg-[#273244]" />
+
               {/* Towers */}
-              <div className="flex items-center gap-1 text-amber-400">
-                <span>{teamRed.towers}</span>
-                <span>🏰</span>
-              </div>
-
-              {/* Gold */}
-              <div className="flex items-center gap-1 text-yellow-400">
-                <span>{formatGold(teamRed.gold)}</span>
-                <span>💰</span>
+              <div className="flex items-center gap-1 text-[#F3F6FA]" title="Turrets Destroyed">
+                <span className="text-[#9FB0C5]">{teamRed.towers}</span>
+                <span className="text-xs">🏰</span>
               </div>
             </div>
 
-            {/* Kills Counter (Hero Metric) */}
-            <div className="px-4 py-1.5 bg-gradient-to-b from-red-600 to-red-800 text-white rounded-xl shadow-lg border border-red-400/50 flex flex-col items-center justify-center min-w-[58px]">
-              <span className="text-[9px] uppercase tracking-wider font-extrabold text-red-200">KILLS</span>
-              <span className="text-2xl font-black font-mono leading-none tracking-tight">{teamRed.kills}</span>
+            {/* Series Score Badge */}
+            <div className="flex items-center gap-1 px-2 py-1 bg-[#121922]/90 rounded-md border border-[#273244]">
+              <span className="text-sm font-mono font-black text-[#FF4D67]">{teamRed.seriesScore}</span>
+              <span className="text-[9px] font-mono font-bold text-[#9FB0C5]">SERIES</span>
             </div>
 
-            {/* Series Score Dots */}
-            <div className="flex items-center gap-1.5 mr-2 px-2.5 py-1 bg-slate-950/80 rounded-lg border border-red-500/30">
-              <span className="text-xl font-mono font-black text-red-400">{teamRed.seriesScore}</span>
-              <span className="text-[10px] font-mono text-slate-400 font-bold ml-1">PTS</span>
-            </div>
-
-            {/* Team Info */}
-            <div className="text-right">
-              <span className="text-[11px] font-mono font-bold tracking-widest text-red-400 uppercase">
-                {teamRed.shortCode}
+            {/* Team Names */}
+            <div className="text-right min-w-[90px] max-w-[150px]">
+              <span className="text-[10px] font-mono font-bold tracking-widest text-[#FF4D67] uppercase block leading-none mb-0.5">
+                {teamRed.shortCode || 'RED'}
               </span>
-              <h2 className="text-lg font-black text-white uppercase tracking-wide leading-tight">
+              <h2 className="text-sm font-black text-[#F3F6FA] uppercase tracking-wide truncate leading-tight">
                 {teamRed.name}
               </h2>
             </div>
 
-            {/* Logo */}
-            <div className="w-12 h-12 rounded-xl bg-slate-900/90 p-1.5 border border-red-400/40 shadow-md flex items-center justify-center">
-              <img src={teamRed.logo} alt="" className="w-full h-full object-contain" />
+            {/* Team Logo */}
+            <div className="w-11 h-11 rounded-lg bg-[#0B0F14]/90 p-1 border border-[#FF4D67]/40 shadow-inner flex items-center justify-center shrink-0">
+              <img 
+                src={teamRed.logo} 
+                alt="" 
+                className="w-full h-full object-contain filter drop-shadow" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/identicon/svg?seed=Red';
+                }}
+              />
             </div>
+
+            {/* Team Edge Accent Bar */}
+            <div className="w-1.5 h-10 rounded-full bg-[#FF4D67] shadow-[0_0_10px_#FF4D67]" />
+
           </div>
 
         </div>

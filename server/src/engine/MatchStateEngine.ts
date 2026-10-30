@@ -7,7 +7,8 @@ import {
   DraftSlot, 
   HeroDefinition, 
   Player,
-  MatchLifecycleStatus 
+  MatchLifecycleStatus,
+  SpecialEventType
 } from '../../../shared/types.js';
 import { MLBB_DRAFT_CONFIG, MLBB_HEROES } from '../config/mlbb.js';
 import { HOK_DRAFT_CONFIG, HOK_HEROES } from '../config/hok.js';
@@ -400,11 +401,24 @@ export class MatchStateEngine {
     killerPlayerName?: string;
     victimPlayerName?: string;
     multikill?: MatchEvent['multikill'];
+    isFirstBlood?: boolean;
+    isShutdown?: boolean;
   }): { success: boolean; duplicate?: boolean } {
-    const signature = `kill:${eventData.team}:${eventData.killerHero?.id || 'unknown'}:${eventData.victimHero?.id || 'unknown'}:${eventData.multikill || 'single'}`;
+    const isFirstKillOverall = this.currentState.teamBlue.kills === 0 && this.currentState.teamRed.kills === 0;
+    const isFB = eventData.isFirstBlood || isFirstKillOverall || eventData.multikill === 'first_blood';
+
+    const signature = `kill:${eventData.team}:${eventData.killerHero?.id || 'unknown'}:${eventData.victimHero?.id || 'unknown'}:${eventData.multikill || 'single'}:${isFB ? 'fb' : ''}`;
     if (this.isDuplicateAction(signature)) {
       return { success: false, duplicate: true };
     }
+
+    let headline = 'KILL';
+    if (isFB) headline = 'FIRST BLOOD';
+    else if (eventData.isShutdown) headline = 'SHUTDOWN';
+    else if (eventData.multikill === 'savage') headline = 'SAVAGE';
+    else if (eventData.multikill === 'maniac') headline = 'MANIAC';
+    else if (eventData.multikill === 'triple') headline = 'TRIPLE KILL';
+    else if (eventData.multikill === 'double') headline = 'DOUBLE KILL';
 
     const event: MatchEvent = {
       id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -416,7 +430,10 @@ export class MatchStateEngine {
       team: eventData.team,
       killerHero: eventData.killerHero,
       victimHero: eventData.victimHero,
-      multikill: eventData.multikill || 'single'
+      multikill: eventData.multikill || (isFB ? 'first_blood' : 'single'),
+      isFirstBlood: isFB,
+      isShutdown: eventData.isShutdown,
+      headline
     };
 
     if (eventData.team === 'blue') {
@@ -426,7 +443,7 @@ export class MatchStateEngine {
     }
 
     this.currentState.events.unshift(event);
-    this.auditAction('KILL_REGISTERED', `${eventData.team.toUpperCase()} kill by ${eventData.killerHero?.name || 'team'}`);
+    this.auditAction('KILL_REGISTERED', `${eventData.team.toUpperCase()} ${headline} by ${eventData.killerHero?.name || 'team'}`);
     this.broadcastState();
     return { success: true };
   }
@@ -436,8 +453,9 @@ export class MatchStateEngine {
     objectiveId: string;
     objectiveName: string;
     objectiveIcon: string;
+    isSteal?: boolean;
   }): { success: boolean; duplicate?: boolean } {
-    const signature = `obj:${eventData.team}:${eventData.objectiveId}`;
+    const signature = `obj:${eventData.team}:${eventData.objectiveId}:${eventData.isSteal ? 'steal' : 'secure'}`;
     if (this.isDuplicateAction(signature)) {
       return { success: false, duplicate: true };
     }
@@ -450,6 +468,8 @@ export class MatchStateEngine {
       type: 'objective',
       game: this.currentState.game,
       team: eventData.team,
+      isSteal: eventData.isSteal,
+      headline: eventData.isSteal ? `${eventData.objectiveName.toUpperCase()} STOLEN!` : `${eventData.objectiveName.toUpperCase()} SECURED`,
       objective: {
         id: eventData.objectiveId,
         name: eventData.objectiveName,
@@ -461,13 +481,13 @@ export class MatchStateEngine {
     targetTeam.objectives[eventData.objectiveId] = (targetTeam.objectives[eventData.objectiveId] || 0) + 1;
 
     this.currentState.events.unshift(event);
-    this.auditAction('OBJECTIVE_SECURED', `${eventData.team.toUpperCase()} secured ${eventData.objectiveName}`);
+    this.auditAction('OBJECTIVE_SECURED', `${eventData.team.toUpperCase()} ${event.headline}`);
     this.broadcastState();
     return { success: true };
   }
 
   public registerTowerEvent(team: 'blue' | 'red'): { success: boolean; duplicate?: boolean } {
-    const signature = `tower:${team}`;
+    const signature = `tower:${team}:${Date.now().toString().slice(0, -3)}`;
     if (this.isDuplicateAction(signature)) {
       return { success: false, duplicate: true };
     }
@@ -479,7 +499,8 @@ export class MatchStateEngine {
       realTimestamp: Date.now(),
       type: 'tower',
       game: this.currentState.game,
-      team
+      team,
+      headline: 'TURRET DESTROYED'
     };
 
     if (team === 'blue') {
@@ -494,6 +515,153 @@ export class MatchStateEngine {
     return { success: true };
   }
 
+  // --- 1-Click Broadcast Special Events (First Blood, Multikills, Steals, Shutdown, Victory) ---
+  public registerSpecialEvent(data: {
+    team: 'blue' | 'red';
+    specialType: SpecialEventType;
+    killerHero?: HeroDefinition;
+    victimHero?: HeroDefinition;
+    isSteal?: boolean;
+    headline?: string;
+    subline?: string;
+  }): { success: boolean; duplicate?: boolean } {
+    const signature = `special:${data.team}:${data.specialType}:${Date.now().toString().slice(0, -2)}`;
+    if (this.isDuplicateAction(signature)) {
+      return { success: false, duplicate: true };
+    }
+
+    const event: MatchEvent = {
+      id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      matchId: this.currentState.id,
+      gameTimeSeconds: this.currentState.clockSeconds,
+      realTimestamp: Date.now(),
+      type: 'special',
+      game: this.currentState.game,
+      team: data.team,
+      specialType: data.specialType,
+      killerHero: data.killerHero,
+      victimHero: data.victimHero,
+      headline: data.headline,
+      subline: data.subline
+    };
+
+    const targetTeam = data.team === 'blue' ? this.currentState.teamBlue : this.currentState.teamRed;
+
+    switch (data.specialType) {
+      case 'first_blood':
+        event.isFirstBlood = true;
+        event.type = 'kill';
+        event.multikill = 'first_blood';
+        event.headline = 'FIRST BLOOD';
+        targetTeam.kills += 1;
+        break;
+      case 'double_kill':
+        event.type = 'kill';
+        event.multikill = 'double';
+        event.headline = 'DOUBLE KILL';
+        targetTeam.kills += 1;
+        break;
+      case 'triple_kill':
+        event.type = 'kill';
+        event.multikill = 'triple';
+        event.headline = 'TRIPLE KILL';
+        targetTeam.kills += 1;
+        break;
+      case 'maniac':
+        event.type = 'kill';
+        event.multikill = 'maniac';
+        event.headline = 'MANIAC';
+        targetTeam.kills += 1;
+        break;
+      case 'savage':
+        event.type = 'kill';
+        event.multikill = 'savage';
+        event.headline = 'SAVAGE';
+        targetTeam.kills += 1;
+        break;
+      case 'shutdown':
+        event.isShutdown = true;
+        event.type = 'kill';
+        event.headline = 'SHUTDOWN';
+        targetTeam.kills += 1;
+        break;
+      case 'turtle_secured':
+        event.type = 'objective';
+        event.headline = 'TURTLE SECURED';
+        event.objective = { id: 'turtle', name: 'Turtle', icon: '🐢' };
+        targetTeam.objectives['turtle'] = (targetTeam.objectives['turtle'] || 0) + 1;
+        break;
+      case 'lord_secured':
+        event.type = 'objective';
+        event.headline = 'LORD SECURED';
+        event.objective = { id: 'lord', name: 'Lord', icon: '👑' };
+        targetTeam.objectives['lord'] = (targetTeam.objectives['lord'] || 0) + 1;
+        break;
+      case 'lord_steal':
+        event.type = 'objective';
+        event.isSteal = true;
+        event.headline = 'LORD STOLEN!';
+        event.objective = { id: 'lord', name: 'Lord', icon: '👑' };
+        targetTeam.objectives['lord'] = (targetTeam.objectives['lord'] || 0) + 1;
+        break;
+      case 'tyrant_secured':
+        event.type = 'objective';
+        event.headline = 'TYRANT SECURED';
+        event.objective = { id: 'primal_tyrant', name: 'Primal Tyrant', icon: '🐉' };
+        targetTeam.objectives['primal_tyrant'] = (targetTeam.objectives['primal_tyrant'] || 0) + 1;
+        break;
+      case 'overlord_secured':
+        event.type = 'objective';
+        event.headline = 'OVERLORD SECURED';
+        event.objective = { id: 'shadow_overlord', name: 'Shadow Overlord', icon: '🐲' };
+        targetTeam.objectives['shadow_overlord'] = (targetTeam.objectives['shadow_overlord'] || 0) + 1;
+        break;
+      case 'tyrant_steal':
+        event.type = 'objective';
+        event.isSteal = true;
+        event.headline = 'TYRANT STOLEN!';
+        event.objective = { id: 'primal_tyrant', name: 'Primal Tyrant', icon: '🐉' };
+        targetTeam.objectives['primal_tyrant'] = (targetTeam.objectives['primal_tyrant'] || 0) + 1;
+        break;
+      case 'overlord_steal':
+        event.type = 'objective';
+        event.isSteal = true;
+        event.headline = 'OVERLORD STOLEN!';
+        event.objective = { id: 'shadow_overlord', name: 'Shadow Overlord', icon: '🐲' };
+        targetTeam.objectives['shadow_overlord'] = (targetTeam.objectives['shadow_overlord'] || 0) + 1;
+        break;
+      case 'tower_destroyed':
+        event.type = 'tower';
+        event.headline = 'TURRET DESTROYED';
+        targetTeam.towers = Math.min(9, targetTeam.towers + 1);
+        break;
+      case 'wipeout':
+        event.headline = 'WIPEOUT';
+        event.subline = `${data.team === 'blue' ? 'RED' : 'BLUE'} TEAM WIPED`;
+        break;
+      case 'victory':
+        event.isVictory = true;
+        event.headline = 'VICTORY';
+        event.subline = `${targetTeam.name.toUpperCase()} WINS GAME ${this.currentState.currentGameNumber}`;
+        event.winnerTeam = {
+          id: targetTeam.teamId,
+          name: targetTeam.name,
+          shortCode: targetTeam.shortCode,
+          logo: targetTeam.logo,
+          primaryColor: targetTeam.primaryColor
+        };
+        targetTeam.seriesScore += 1;
+        this.currentState.status = 'ended';
+        this.currentState.isClockRunning = false;
+        break;
+    }
+
+    this.currentState.events.unshift(event);
+    this.auditAction('SPECIAL_EVENT', `${data.team.toUpperCase()} - ${event.headline || data.specialType}`);
+    this.broadcastState();
+    return { success: true };
+  }
+
   // --- Complete Synchronized Undo with WebSocket Notification ---
   public undoLastEvent(): { success: boolean; undoneEvent?: MatchEvent } {
     if (this.currentState.events.length === 0) {
@@ -502,19 +670,26 @@ export class MatchStateEngine {
 
     const undone = this.currentState.events.shift()!;
 
-    if (undone.type === 'kill') {
+    if (undone.specialType === 'victory' || undone.isVictory) {
+      if (undone.team === 'blue' && this.currentState.teamBlue.seriesScore > 0) {
+        this.currentState.teamBlue.seriesScore -= 1;
+      } else if (undone.team === 'red' && this.currentState.teamRed.seriesScore > 0) {
+        this.currentState.teamRed.seriesScore -= 1;
+      }
+      this.currentState.status = 'live';
+    } else if (undone.type === 'kill' || undone.killerHero || undone.isFirstBlood || undone.isShutdown) {
       if (undone.team === 'blue' && this.currentState.teamBlue.kills > 0) {
         this.currentState.teamBlue.kills -= 1;
       } else if (undone.team === 'red' && this.currentState.teamRed.kills > 0) {
         this.currentState.teamRed.kills -= 1;
       }
-    } else if (undone.type === 'tower') {
+    } else if (undone.type === 'tower' || undone.specialType === 'tower_destroyed') {
       if (undone.team === 'blue' && this.currentState.teamBlue.towers > 0) {
         this.currentState.teamBlue.towers -= 1;
       } else if (undone.team === 'red' && this.currentState.teamRed.towers > 0) {
         this.currentState.teamRed.towers -= 1;
       }
-    } else if (undone.type === 'objective' && undone.objective) {
+    } else if ((undone.type === 'objective' || undone.objective) && undone.objective) {
       const targetTeam = undone.team === 'blue' ? this.currentState.teamBlue : this.currentState.teamRed;
       if (targetTeam.objectives[undone.objective.id] > 0) {
         targetTeam.objectives[undone.objective.id] -= 1;
@@ -530,7 +705,7 @@ export class MatchStateEngine {
       }
     });
 
-    this.auditAction('EVENT_UNDONE', `Undid ${undone.type} (${undone.team.toUpperCase()})`);
+    this.auditAction('EVENT_UNDONE', `Undid ${undone.headline || undone.type} (${undone.team.toUpperCase()})`);
     this.broadcastState();
     return { success: true, undoneEvent: undone };
   }
@@ -689,17 +864,10 @@ export class MatchStateEngine {
 
   // --- End Match & Start Next Game Flow ---
   public endCurrentGame(winner: 'blue' | 'red'): { success: boolean } {
-    if (winner === 'blue') {
-      this.currentState.teamBlue.seriesScore += 1;
-    } else {
-      this.currentState.teamRed.seriesScore += 1;
-    }
-
-    this.currentState.status = 'ended';
-    this.currentState.isClockRunning = false;
-    this.auditAction('GAME_ENDED', `${winner.toUpperCase()} won Game ${this.currentState.currentGameNumber}`);
-    this.broadcastState();
-    return { success: true };
+    return this.registerSpecialEvent({
+      team: winner,
+      specialType: 'victory'
+    });
   }
 
   public prepareNextGame(): { success: boolean } {

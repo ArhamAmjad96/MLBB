@@ -1,4 +1,4 @@
-import { GameType, HeroDefinition, MatchLiveState, MatchLifecycleStatus } from '../../../shared/types';
+import { GameType, HeroDefinition, MatchLiveState, MatchLifecycleStatus, SpecialEventType } from '../../../shared/types';
 
 const API_BASE = '/api';
 
@@ -136,6 +136,23 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ team })
+    });
+    return res.json();
+  },
+
+  async registerSpecialEvent(data: {
+    team: 'blue' | 'red';
+    specialType: SpecialEventType;
+    killerHero?: HeroDefinition;
+    victimHero?: HeroDefinition;
+    isSteal?: boolean;
+    headline?: string;
+    subline?: string;
+  }): Promise<{ success: boolean; duplicate?: boolean }> {
+    const res = await fetch(`${API_BASE}/events/special`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
     });
     return res.json();
   },

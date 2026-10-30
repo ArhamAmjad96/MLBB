@@ -98,12 +98,30 @@ export interface TeamMatchState {
 
 export type MultikillType = 'single' | 'double' | 'triple' | 'maniac' | 'savage' | 'penta' | 'first_blood' | 'wipeout';
 
+export type SpecialEventType =
+  | 'first_blood'
+  | 'double_kill'
+  | 'triple_kill'
+  | 'maniac'
+  | 'savage'
+  | 'shutdown'
+  | 'turtle_secured'
+  | 'lord_secured'
+  | 'lord_steal'
+  | 'tyrant_secured'
+  | 'overlord_secured'
+  | 'tyrant_steal'
+  | 'overlord_steal'
+  | 'tower_destroyed'
+  | 'victory'
+  | 'wipeout';
+
 export interface MatchEvent {
   id: string;
   matchId: string;
   gameTimeSeconds: number;
   realTimestamp: number;
-  type: 'kill' | 'tower' | 'objective' | 'gold_sync' | 'announcement';
+  type: 'kill' | 'tower' | 'objective' | 'gold_sync' | 'announcement' | 'special';
   game: GameType;
   team: 'blue' | 'red';
   killerHero?: { id: string; name: string; avatar: string; playerName?: string };
@@ -111,6 +129,20 @@ export interface MatchEvent {
   assists?: { id: string; name: string; avatar: string; playerName?: string }[];
   objective?: { id: string; name: string; icon: string };
   multikill?: MultikillType;
+  specialType?: SpecialEventType;
+  isFirstBlood?: boolean;
+  isSteal?: boolean;
+  isShutdown?: boolean;
+  isVictory?: boolean;
+  headline?: string;
+  subline?: string;
+  winnerTeam?: {
+    id: string;
+    name: string;
+    shortCode: string;
+    logo: string;
+    primaryColor: string;
+  };
   message?: string;
 }
 
