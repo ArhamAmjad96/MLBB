@@ -1,0 +1,332 @@
+================================================================================
+MARK47 • MULTI-GAME ESPORTS BROADCAST PRODUCTION SYSTEM (MLBB & HOK)
+COMPLETE OPERATOR'S MANUAL, OBS SETUP GUIDE & PRESENTATION PLAYBOOK
+Version: 2.0.0 (Local-First Esports Production Suite)
+Repository: https://github.com/ArhamAmjad96/MLBB
+================================================================================
+
+TABLE OF CONTENTS:
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & WHAT THIS SYSTEM DOES
+2. HOW TO START & RUN THE LOCAL HOST SERVERS
+3. OBS STUDIO & LDPLAYER EMULATOR SETUP (STEP-BY-STEP)
+4. BROADCAST OVERLAYS (1920x1080 TRANSPARENT URLS)
+5. TOURNAMENT DRAFT PHASE GUIDE (10-BAN SPLIT & AUTO-TIMER)
+6. IN-GAME LIVE MATCH OPERATIONS & 1-CLICK UNDO
+7. COMPLETE MLBB HERO ROSTER (ALL 133 HEROES BY LANE)
+8. WHERE TO DOWNLOAD HERO PICTURES, SKINS & ARTWORK
+9. 4-MINUTE PRESENTATION SCRIPT (HOW TO IMPRESS AN AUDIENCE)
+10. TROUBLESHOOTING & EMERGENCY CONTROLS
+================================================================================
+
+
+1. EXECUTIVE SUMMARY & WHAT THIS SYSTEM DOES
+--------------------------------------------------------------------------------
+Mobile MOBA esports (such as Mobile Legends: Bang Bang and Honor of Kings) suffer
+from a lack of open, real-time in-game telemetry APIs. Independent tournament
+operators and streamers typically have to use static graphics or complex cloud
+tools.
+
+MARK47 solves this by providing a complete, local-first esports broadcast suite:
+  * Real-Time Operator Control Desk: Single-click controls for picks, bans,
+    timers, kills, towers, and neutral objectives.
+  * Sub-10ms Zero-Latency WebSocket Sync: Every button click immediately
+    updates broadcast overlays running at 60 FPS in OBS Studio or vMix.
+  * Official Tournament Rule Sets: Full MLBB 10-Ban Split and HOK KPL 4-Ban rules
+    with automated duplicate hero locks and timer handoffs.
+  * 1-Click Event Undo: Atomic rollback that undoes accidental clicks without
+    ruining live scoreboard statistics.
+  * 100% Offline Capability: Operates entirely on localhost without external cloud
+    server dependencies.
+
+
+2. HOW TO START & RUN THE LOCAL HOST SERVERS
+--------------------------------------------------------------------------------
+To launch the full system (Server + Client) on your Windows computer:
+
+1. Open PowerShell or Command Prompt in the project folder:
+   H:\ARHAM\HOK-MLBB
+
+2. Run this command:
+   $env:PATH = "C:\Users\NAC\scoop\apps\nodejs-lts\current;C:\Users\NAC\scoop\apps\nodejs-lts\current\bin;" + $env:PATH
+   npm run dev
+
+3. Active URLs:
+   - Operator Control Desk:   http://localhost:5173
+   - Live Match Control:       http://localhost:5173/live
+   - Draft Pick/Ban Room:      http://localhost:5173/draft
+   - Teams & Rosters:          http://localhost:5173/teams
+   - Backend State Engine:     http://localhost:3001
+   - WebSocket Broadcast Stream: ws://localhost:3001
+   - Local Network (Phone/Tablet): http://192.168.1.12:5173
+
+
+3. OBS STUDIO & LDPLAYER EMULATOR SETUP (STEP-BY-STEP)
+--------------------------------------------------------------------------------
+Follow these exact steps to broadcast your game with professional overlays:
+
+STEP 1: SET OBS RESOLUTION (ONE-TIME SETUP)
+  1. Open OBS Studio.
+  2. Go to Settings (bottom-right) -> Video.
+  3. Base (Canvas) Resolution:   1920x1080
+  4. Output (Scaled) Resolution: 1920x1080
+  5. Common FPS:                 60
+  6. Click Apply -> OK.
+
+STEP 2: CREATE TWO BROADCAST SCENES
+  Under the "Scenes" panel (bottom-left), create two scenes:
+  Scene 1: "In-Game Match"   (For live gameplay + scoreboard HUD)
+  Scene 2: "Draft Phase"     (For full-screen hero pick & ban)
+
+STEP 3: CONFIGURE SCENE 1 ("In-Game Match")
+  In Scene 1, add these 3 sources in this EXACT order:
+
+  Source 1 (Top Layer): MARK47 Kill Feed
+    - Add Source -> Browser
+    - URL:    http://localhost:5173/overlay/feed
+    - Width:  1920 | Height: 1080 | FPS: 60
+    - Uncheck: "Shutdown source when not visible"
+    - Click OK.
+
+  Source 2 (Middle Layer): MARK47 HUD
+    - Add Source -> Browser
+    - URL:    http://localhost:5173/overlay/hud
+    - Width:  1920 | Height: 1080 | FPS: 60
+    - Uncheck: "Shutdown source when not visible"
+    - Click OK.
+
+  Source 3 (Bottom Layer): LDPlayer Game
+    - Add Source -> Window Capture (or Game Capture)
+    - Window: Select "[dnplayer.exe] LDPlayer"
+    - Capture Method: "Windows 10 (1903 and up)"
+    - Click OK.
+    - Press Ctrl + F to fit the emulator game to the screen.
+
+  IMPORTANT LAYER ORDER CHECKLIST:
+  [Top]    MARK47 Kill Feed  (Top-right popup banners)
+  [Middle] MARK47 HUD        (Top scoreboard bar)
+  [Bottom] LDPlayer Game     (Your actual gameplay)
+
+STEP 4: CONFIGURE SCENE 2 ("Draft Phase")
+  Select Scene 2 in OBS, then add 1 source:
+    - Add Source -> Browser
+    - Name:   MARK47 Draft Stage
+    - URL:    http://localhost:5173/overlay/draft
+    - Width:  1920 | Height: 1080 | FPS: 60
+    - Uncheck: "Shutdown source when not visible"
+    - Click OK.
+
+
+4. BROADCAST OVERLAYS (1920x1080 TRANSPARENT URLS)
+--------------------------------------------------------------------------------
+All overlays render at 1920x1080 with transparent CSS backgrounds:
+
+| OVERLAY NAME    | BROWSER SOURCE URL                   | PURPOSE                                      |
+| :-------------- | :----------------------------------- | :------------------------------------------- |
+| Scoreboard HUD  | http://localhost:5173/overlay/hud    | Top bar: team logos, series score, kills,    |
+|                 |                                      | timer, towers, and Turtle/Lord boss icons.   |
+| Kill Feed       | http://localhost:5173/overlay/feed   | Animated popups for kills, multikills,       |
+|                 |                                      | and boss steals (auto-fades after 7 seconds).|
+| Draft Stage     | http://localhost:5173/overlay/draft  | 1080p full-screen Pick/Ban arena with live   |
+|                 |                                      | hero artwork, 40s countdown, and team boxes. |
+| MVP Spotlight   | http://localhost:5173/overlay/mvp    | Post-game match summary, player stats card,  |
+|                 |                                      | and portrait.                                |
+
+
+5. TOURNAMENT DRAFT PHASE GUIDE (10-BAN SPLIT & AUTO-TIMER)
+--------------------------------------------------------------------------------
+The Draft Room implements official MPL / M-Series competitive timing:
+
+URL: http://localhost:5173/draft
+
+AUTOMATIC TIMING RULE:
+  * When you click "START" on Phase 1 (Blue Ban 1), the 40-second clock begins.
+  * As soon as a team locks in a ban or pick, the turn automatically advances
+    to the next team, resets to 40 seconds, and immediately starts counting down!
+  * You do not need to manually click "Start" between turns.
+
+OFFICIAL 4-WAVE DRAFT SEQUENCE (20 TURNS TOTAL):
+  Wave 1 - Initial 6 Bans (Phases 1 to 6):
+    Turn 1: Blue Ban 1 -> Click hero -> Click CONFIRM BAN (Red button)
+    Turn 2: Red Ban 1  -> Click hero -> Click CONFIRM BAN
+    Turn 3: Blue Ban 2 -> Click hero -> Click CONFIRM BAN
+    Turn 4: Red Ban 2  -> Click hero -> Click CONFIRM BAN
+    Turn 5: Blue Ban 3 -> Click hero -> Click CONFIRM BAN
+    Turn 6: Red Ban 3  -> Click hero -> Click CONFIRM BAN
+
+  Wave 2 - Core 6 Picks (Phases 7 to 12):
+    Turn 7: Blue Pick 1  -> Button turns BLUE (CONFIRM PICK)
+    Turn 8: Red Pick 1   -> Hero splash art lights up in slot
+    Turn 9: Red Pick 2
+    Turn 10: Blue Pick 2
+    Turn 11: Blue Pick 3
+    Turn 12: Red Pick 3
+
+  Wave 3 - Secondary 4 Bans (Phases 13 to 16):
+    Turn 13: Red Ban 4   -> Turn 14: Blue Ban 4
+    Turn 15: Red Ban 5   -> Turn 16: Blue Ban 5
+
+  Wave 4 - Final 4 Picks (Phases 17 to 20):
+    Turn 17: Red Pick 4  -> Turn 18: Blue Pick 4
+    Turn 19: Blue Pick 5 -> Turn 20: Red Pick 5 (Final Roster Locked)
+
+SAFETY FEATURES:
+  * Duplicate Lock: Heroes already picked or banned are grayed out and stamped.
+  * Undo Pick/Ban: Made a mistake? Click "UNDO PICK/BAN" to rewind the turn
+    and clear the hero from the slot.
+  * Technical Pause: Click "PAUSE" to freeze the timer if a player disconnects.
+
+
+6. IN-GAME LIVE MATCH OPERATIONS & 1-CLICK UNDO
+--------------------------------------------------------------------------------
+URL: http://localhost:5173/live
+
+DURING GAMEPLAY:
+  1. Match Timer: When minions spawn at 00:00, click the green Play (▶) button.
+     The clock starts ticking on the OBS Scoreboard HUD.
+  2. Logging Kills:
+     - Click any player slot or the blue "+ Kill" button.
+     - The kill score increments immediately on the HUD.
+     - The Kill Feed overlay in OBS shows an animated banner for 7 seconds.
+  3. Multikills:
+     - Select "Double", "Triple", "Maniac", or "Savage" before clicking the killer.
+  4. Turrets:
+     - Click "+ Tower" under Blue or Red when a turret falls.
+  5. Boss Objectives (Turtle / Lord):
+     - Click the "Turtle" or "Lord" button when slain.
+     - An objective badge permanently stamps onto the team's HUD wing.
+  6. 1-Click Undo (The Safety Net):
+     - Misclicked during a crazy 5v5 teamfight?
+     - Click "Undo Last Event" (curved arrow button).
+     - The kill, tower, or boss count instantly rolls back on stream.
+
+ENDING THE MATCH:
+  1. When the base crystal explodes, pause the match clock.
+  2. Click "End Game" -> Select winner (Blue or Red).
+  3. Winner gets +1 point on the overall series score (e.g. 1 - 0).
+  4. In OBS, switch to the "MVP Spotlight" scene to show the match winner.
+  5. Click "Next Game" on the web desk to prepare Game 2 (resets clock, kills,
+     and towers to 0, while keeping the series score saved!).
+
+
+7. COMPLETE MLBB HERO ROSTER (ALL 133 HEROES BY LANE)
+--------------------------------------------------------------------------------
+The software includes all 133 Mobile Legends heroes categorized by role:
+
+EXP LANE (37 Heroes):
+  Aldous, Alpha, Arlott, Argus, Badang, Bane, Benedetta, Chou, Cici, Dyrroth,
+  Edith, Esmeralda, Freya, Gloo, Guinevere, Hilda, Jawhead, Joy, Khaleed,
+  Lapu-Lapu, Leomord, Lukas, Masha, Minsitthar, Paquito, Phoveus, Ruby,
+  Silvanna, Sun, Suyou, Terizla, Thamuz, Uranus, X.Borg, Yin, Yu Zhong, Zilong.
+
+MID LANE (26 Heroes):
+  Alice, Aurora, Cecilion, Chang'e, Cyclops, Eudora, Faramis, Gord, Harith,
+  Kadita, Kagura, Luo Yi, Lunox, Lylia, Nana, Novaria, Odette, Pharsa, Vale,
+  Valentina, Valir, Vexana, Xavier, Yve, Zhask, Zhuxin.
+
+GOLD LANE (22 Heroes):
+  Beatrix, Brody, Bruno, Claude, Clint, Granger, Hanabi, Irithel, Ixia,
+  Karrie, Kimmy, Layla, Lesley, Melissa, Miya, Moskov, Natan, Popol and Kupa,
+  Roger, Wanwan, Hirara, Kalea.
+
+ROAM / TANK & SUPPORT (25 Heroes):
+  Akai, Angela, Atlas, Belerick, Carmilla, Chip, Diggie, Estes, Floryn,
+  Franco, Gatotkaca, Grock, Hylos, Johnson, Kaja, Khufra, Lolita, Mathilda,
+  Minotaur, Natalia, Rafaela, Tigreal, Marcel, Obsidia, Sora.
+
+JUNGLE / ASSASSIN & FIGHTER (23 Heroes):
+  Aamon, Alucard, Aulus, Balmond, Barats, Baxia, Fanny, Fredrinn, Gusion,
+  Hanzo, Harley, Hayabusa, Helcurt, Julian, Karina, Lancelot, Ling, Martis,
+  Nolan, Saber, Yi Sun-shin, Zetian.
+
+
+8. WHERE TO DOWNLOAD HERO PICTURES, SKINS & ARTWORK
+--------------------------------------------------------------------------------
+ALL 133 ICONS ARE ALREADY DOWNLOADED LOCALLY ON YOUR COMPUTER:
+  Location: H:\ARHAM\HOK-MLBB\client\public\heroes\mlbb\
+  (This means your app loads images with 0ms network lag and works 100% offline).
+
+IF YOU WANT EXTRA HD SKINS, 3D RENDERS, OR WALLPAPERS:
+
+1. Mobile Legends Fandom Wiki (Best for complete galleries):
+   Website: https://mobile-legends.fandom.com/wiki/Category:Heroes
+   - Search for any hero.
+   - Go to their "Gallery" tab to download square icons, skin wallpapers, and
+     transparent hero cutouts.
+
+2. Liquipedia MLBB Portal (Official Esports Renders):
+   Website: https://liquipedia.net/mobilelegends/Portal:Heroes
+   - Clean, uniform, high-resolution PNG transparent cutouts used in MPL broadcasts.
+
+3. Official Moonton MLBB Portal:
+   Website: https://m.mobilelegends.com/en/hero
+   - Official 3D character renders, background lore, and skills animations.
+
+4. Open-Source GitHub MLBB Database:
+   Repository: https://github.com/Ceplin03/database-mlbb.Mobile-Legends-Bang-Bang
+   - Complete directory of raw hero PNGs and stats.
+
+
+9. 4-MINUTE PRESENTATION SCRIPT (HOW TO IMPRESS AN AUDIENCE)
+--------------------------------------------------------------------------------
+Use this script when demoing your project to a teacher, client, or evaluator:
+
+00:00 - THE HOOK (The Problem)
+  "Mobile esports tournaments like MLBB and Honor of Kings don't have open live
+   game APIs. Broadcasters are forced to use static pictures or manual spreadsheets.
+   I built MARK47: a local-first, broadcast-ready production system that gives
+   streamers real-time tournament control with sub-10ms transparent overlays in OBS."
+
+00:30 - THE DRAFT PHASE DEMO
+  * Switch OBS to the 'Draft Phase' scene.
+  * In the browser at http://localhost:5173/draft:
+    - Click START on the 40s timer (show OBS center countdown ticking).
+    - Select Fanny and click CONFIRM BAN.
+    - Show how Fanny locks into OBS with a red cross, the turn shifts to Red,
+      and the 40s timer immediately resets and auto-starts for the next turn!
+    - Try selecting Fanny again: show that duplicate picks are rejected.
+
+01:30 - THE LIVE MATCH DEMO
+  * Switch OBS to the 'In-Game Match' scene (showing LDPlayer + Scoreboard HUD).
+  * In the browser at http://localhost:5173/live:
+    - Start the match clock (show the HUD clock counting up).
+    - Click "+ Kill" on a player (show the kill count update and the animated
+      kill banner popup on the top-right in OBS).
+    - Log a Turtle / Lord (show the boss badge appear on the scoreboard).
+
+02:30 - THE KILLER FEATURE: 1-CLICK UNDO
+  "In fast-paced esports, misclicks happen. Normal stream tools ruin the match
+   statistics."
+  * Click "Undo Last Event".
+  * Show OBS instantly reverting the score and objective with zero delay.
+
+03:15 - DUAL-GAME LOGIC (MLBB + HOK)
+  * Click "HOK" in the top-left navigation.
+  * Show how the hero list, draft rules (KPL 4-ban), and bosses (Tyrant/Overlord)
+    switch dynamically in 1 click.
+
+03:45 - CONCLUSION
+  "Everything is persisted locally in SQLite, operates without internet, and
+   delivers true TV-grade broadcast production."
+
+
+10. TROUBLESHOOTING & EMERGENCY CONTROLS
+--------------------------------------------------------------------------------
+Q: My overlay in OBS is black or not showing.
+A: 1. Click the "Refresh" button below the source preview in OBS (or right-click
+      the source -> "Refresh cache of current page").
+   2. In Sources, make sure the browser overlay is placed ABOVE the LDPlayer game.
+   3. Check that the source width is 1920 and height is 1080.
+
+Q: Emergency Blackout (Need to hide all graphics immediately).
+A: Go to http://localhost:5173 (Command Center) -> click "EMERGENCY BLACKOUT".
+   All stream graphics will vanish from OBS instantly.
+
+Q: How do I control the stream from my smartphone?
+A: Connect your phone to the same Wi-Fi as your PC and open:
+   http://192.168.1.12:5173
+   You can tap buttons on your phone while playing full-screen on your PC!
+
+================================================================================
+END OF MANUAL • MARK47 ESPORTS PRODUCTION SYSTEM • VERSION 2.0.0
+================================================================================
