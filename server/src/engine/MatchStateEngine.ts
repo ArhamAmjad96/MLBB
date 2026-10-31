@@ -541,6 +541,8 @@ export class MatchStateEngine {
       this.currentState.draft.activePhaseIndex = phaseIndex;
       const phase = this.currentState.draft.phases[phaseIndex];
       this.currentState.draft.timerRemaining = phase.timeSeconds;
+      this.currentState.draft.isTimerRunning = true;
+      this.currentState.status = 'drafting';
       this.auditAction('DRAFT_PHASE_CHANGED', `Jumped to draft phase ${phaseIndex + 1}: ${phase.label}`);
       this.broadcastState();
     }
@@ -599,11 +601,13 @@ export class MatchStateEngine {
       role: role || hero.primaryRole
     };
 
-    // Auto-advance phase
+    // Auto-advance phase and automatically start the countdown for the next team's turn (Official MLBB tournament standard)
     if (this.currentState.draft.activePhaseIndex < this.currentState.draft.phases.length - 1) {
       this.currentState.draft.activePhaseIndex += 1;
       const nextPhase = this.currentState.draft.phases[this.currentState.draft.activePhaseIndex];
       this.currentState.draft.timerRemaining = nextPhase.timeSeconds;
+      this.currentState.draft.isTimerRunning = true;
+      this.currentState.status = 'drafting';
     } else {
       this.currentState.draft.completed = true;
       this.currentState.draft.isTimerRunning = false;
