@@ -1,0 +1,387 @@
+================================================================================
+MARK47 • MULTI-GAME ESPORTS BROADCAST PRODUCTION SYSTEM
+Comprehensive Product Overview, Architecture & Operator Guide
+Supported Titles: Mobile Legends: Bang Bang (MLBB) & Honor of Kings (HOK)
+Version: 2.0.0 (Local-First Production Edition)
+================================================================================
+
+TABLE OF CONTENTS:
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & PRODUCT MISSION
+2. CORE VALUE PROPOSITION & TARGET AUDIENCE
+3. HIGH-LEVEL SYSTEM ARCHITECTURE
+4. DUAL-GAME LOGIC: MLBB VS. HONOR OF KINGS (HOK)
+5. OPERATOR INTERFACE & DESK MODULES
+   5.1 Central Dashboard & Game Mode Switcher
+   5.2 Draft Pick/Ban Control Room
+   5.3 Live Match Control Room & Scoring
+   5.4 Overlays Hub & Broadcast Director
+   5.5 Teams & Roster Manager
+6. OBS STUDIO & VMIX BROADCAST OVERLAYS (1920x1080)
+   6.1 Scoreboard HUD (/overlay/hud)
+   6.2 Draft Pick/Ban Stage (/overlay/draft)
+   6.3 Live Kill & Multikill Feed (/overlay/feed)
+   6.4 MVP Player Spotlight (/overlay/mvp)
+7. EVENT SOURCING ENGINE & SAFETY MECHANISMS
+   7.1 Atomic Event Logging
+   7.2 One-Click Instant Undo Rollback
+   7.3 Sub-10ms WebSocket State Synchronization
+8. DATABASE SCHEMA & PERSISTENCE
+9. COMPLETE REST API & WEBSOCKET SPECIFICATION
+10. PRODUCTION WORKFLOW CHECKLIST (PRE-MATCH TO POST-MATCH)
+11. DIRECTORY STRUCTURE & FILE MAP
+12. FREQUENTLY ASKED QUESTIONS & TROUBLESHOOTING
+================================================================================
+
+
+1. EXECUTIVE SUMMARY & PRODUCT MISSION
+--------------------------------------------------------------------------------
+MARK47 is a dedicated, local-first esports broadcast production suite engineered
+specifically for Mobile Legends: Bang Bang (MLBB) and Honor of Kings (HOK).
+
+Unlike standard scoreboard tools or complex cloud solutions, MARK47 gives esports
+tournament operators, broadcast directors, and community casters a single,
+self-contained system that handles:
+  * Complete Tournament Draft Control (Official 10-Ban and 4-Ban rule sets).
+  * Real-time In-Game Event Sourcing (Kills, Multikills, Towers, Neutral Bosses).
+  * Zero-Latency Local State Sync across operator controls and display outputs.
+  * Direct transparent browser-source outputs (1920x1080 @ 60 FPS) ready to drop
+    into OBS Studio, vMix, or hardware vision mixers.
+
+The system runs entirely on the host machine without external API dependencies,
+ensuring 100% broadcast reliability even in offline arena environments or on
+low-bandwidth field productions.
+
+
+2. CORE VALUE PROPOSITION & TARGET AUDIENCE
+--------------------------------------------------------------------------------
+Why MARK47 Exists:
+Mobile MOBA esports (MLBB and HOK) suffer from a lack of open, reliable live-game
+APIs. Tournament organizers are forced to manually coordinate scoreboards, use
+clunky spreadsheets, or settle for generic static overlays.
+
+MARK47 solves this with:
+  1. No External Game API Needed:
+     Fast, tactile operator controls allow a single production assistant to log
+     kills, gold updates, tower drops, and boss takedowns in real time.
+  2. Live 1-Click Undo:
+     Misclicks in fast-paced 5v5 teamfights can be reversed instantly without
+     ruining broadcast stats.
+  3. Seamless Game Switching:
+     Instantly toggle between MLBB and HOK with automatic reconfiguration of
+     draft rules, roles, hero databases, and neutral objective graphics.
+  4. Ultra-Low Latency (<10ms):
+     Powered by local WebSockets. As soon as an operator clicks "TOWER DESTROYED"
+     or "LORD SECURED", the OBS overlay reflects it instantaneously.
+
+Target Audience:
+  * Tier-2 and Tier-3 Mobile Esports Tournaments.
+  * Gaming Cafes, LAN Centers, and University Leagues.
+  * Independent Esports Casters & Streamers on YouTube, Twitch, TikTok & Facebook.
+  * Production Houses broadcasting regional qualifiers and community cups.
+
+
+3. HIGH-LEVEL SYSTEM ARCHITECTURE
+--------------------------------------------------------------------------------
+The platform is organized into three decoupled layers:
+
+ [ OPERATOR DESK ] (Port 5173)
+   - React 19 + TypeScript + Tailwind CSS + Lucide Icons + Vite
+   - Single Page Application offering responsive, keyboard-friendly control panels.
+   - Communicates with the backend via REST API (actions) and WebSockets (state sync).
+          │
+          ▼  REST Requests (Events / Controls) & WebSockets (<10ms sync)
+ [ NODE.JS ENGINE & STATE HUB ] (Port 3001)
+   - Express HTTP Server + Native `ws` WebSocket Server
+   - MatchStateEngine: In-memory source of truth for timer, draft, score, events.
+   - Local SQLite Database (Node 22 built-in / better-sqlite3) for persistent data
+     (Tournaments, Teams, Rosters, Match Archives).
+   - Built-in Game Configuration Registries (MLBB & HOK heroes, icons, roles).
+          │
+          ▼  Real-Time WebSocket State Broadcast (JSON frames)
+ [ OBS STUDIO / VMIX OVERLAYS ] (Port 5173/overlay/*)
+   - Transparent 1920x1080 browser viewports designed with CSS animations.
+   - Auto-reconnecting WebSocket client that reacts instantly to match events.
+
+
+4. DUAL-GAME LOGIC: MLBB VS. HONOR OF KINGS (HOK)
+--------------------------------------------------------------------------------
+MARK47 is deeply tailored to the official competitive standards of each title:
+
+FEATURE                   MLBB (Mobile Legends)            HOK (Honor of Kings)
+--------------------------------------------------------------------------------
+Active Roles              EXP, MID, GOLD, ROAM, JUNGLE     CLASH, MID, FARM, ROAM, JUNGLE
+Draft Rule Set            10-Ban Official Split Format     KPL 4-Ban Split Format
+Phase 1 Bans              3 Bans per team (6 total)        2 Bans per team (4 total)
+Phase 1 Picks             3 Picks per team (6 total)       3 Picks per team (6 total)
+Phase 2 Bans              2 Bans per team (4 total)        2 Bans per team (4 total)
+Phase 2 Picks             2 Picks per team (4 total)       2 Picks per team (4 total)
+Neutral Objectives        - Turtle (Shield & Team Gold)    - Primal Tyrant (Damage Boost)
+                          - Lord (Lane Siege Charge)       - Shadow Overlord (Dragon Vanguards)
+                                                           - Tempest Dragon (Late-game Shield Aura)
+Primary Themes            Cyber Violet & Gold Accents      Ancient Gold & Amber Glow
+Hero Registry             120+ Heroes (Fighter, Mage, etc) 100+ Heroes (Tank, Assassin, etc)
+
+
+5. OPERATOR INTERFACE & DESK MODULES
+--------------------------------------------------------------------------------
+
+5.1 Central Dashboard (Route: /)
+  * System health, WebSocket connection status, and active engine state.
+  * Game Mode Switcher: One-click toggle between MLBB and HOK.
+  * Active Match Quick Card: Displays Blue vs. Red teams, current game number,
+    series score, and match status (Scheduled, Drafting, Live, Ended).
+  * Fast-action navigation buttons to Draft Room, Live Match Desk, and Overlays Hub.
+
+5.2 Draft Pick/Ban Control Room (Route: /draft)
+  * Interactive Pick/Ban Matrix showing Blue and Red ban/pick boxes.
+  * Phase Tracker: Highlights current turn (e.g., "Blue Pick 1", "Red Ban 2").
+  * Hero Search & Role Filters: Fast search bar to select heroes by name or role.
+  * Draft Timer: Start, pause, or reset countdown timer per phase.
+  * Lock-In & Auto-Advance: One-click lock-in commits hero, links assigned player,
+    and advances directly to the next draft slot.
+  * Undo Last Action: Mistaken ban or pick can be instantly rolled back.
+
+5.3 Live Match Control Room & Scoring (Route: /live)
+  * Match Clock Controls: Start/Pause stopwatch, Reset to 00:00, or adjust ±10s/±1m.
+  * Series Scoreboard Controls: Adjust wins for Best-Of series (BO1, BO3, BO5, BO7).
+  * Gold & Tower Adjusters: Fast incremental buttons (±100, ±500, ±1000 gold; ±1 tower).
+  * Kill Event Register Modal:
+      - Select Killer Hero + Victim Hero from active draft slots.
+      - Optional multikill tag: Single, Double, Triple, Maniac, Savage, Wipeout.
+      - Automatically increments team kills and broadcasts to Kill Feed overlay.
+  * Objective Register Buttons:
+      - One-click buttons to award Turtle/Lord (MLBB) or Tyrant/Overlord (HOK).
+      - Automatically plays objective steal/secured announcement on stream.
+  * Audit Timeline & Instant Undo:
+      - Chronological event log of every action taken in the game.
+      - "UNDO LAST EVENT" button rolls back score, gold, kills, and feed triggers.
+
+5.4 Overlays Hub & Broadcast Director (Route: /overlays)
+  * Live visual preview of all broadcast overlays directly inside the browser.
+  * One-click "Copy OBS Browser Source URL" for fast setup during production.
+  * Master Overlay Visibility Toggles:
+      - HUD Overlay (On/Off)
+      - Draft Overlay (On/Off)
+      - Kill Feed Overlay (On/Off)
+      - MVP Card (On/Off)
+      - Lower-Third Player Stat Banner (On/Off)
+  * Broadcast Announcement Trigger: Custom ticker message on stream.
+
+5.5 Teams & Roster Manager (Route: /teams)
+  * Database manager for organizations, logos, primary/secondary brand colors.
+  * Player roster management: Real Name, In-Game Name (IGN), Assigned Role, Avatar.
+  * Direct seed selector to assign participating teams to Blue and Red sides.
+
+
+6. OBS STUDIO & VMIX BROADCAST OVERLAYS (1920x1080)
+--------------------------------------------------------------------------------
+All overlays are transparent, full-HD viewports designed to be loaded as
+Browser Sources in OBS Studio or vMix with dimensions 1920 x 1080.
+
+6.1 Scoreboard HUD (/overlay/hud)
+  * Positioned at the top center of the 1080p canvas.
+  * Displays:
+      - Blue Team Logo, Name, Series Score, Current Kills, Total Gold, Towers.
+      - Red Team Logo, Name, Series Score, Current Kills, Total Gold, Towers.
+      - Center Match Clock & Game Number (e.g. "GAME 2 • BO3").
+      - Neutral Objective Counters: Turtle/Lord icons for MLBB, Tyrant/Overlord for HOK.
+      - Gold difference indicator.
+
+6.2 Draft Pick/Ban Stage (/overlay/draft)
+  * Full-screen 1080p esports tournament draft view.
+  * Blue Team (Left) and Red Team (Right) with player IGNs, roles, and picked heroes.
+  * Animated banner highlights showing who is currently banning or picking.
+  * Dedicated Ban Footers at the bottom with greyscale locked-out ban portraits.
+  * Center countdown clock with animated pulsing urgency indicator (<10 seconds).
+
+6.3 Live Kill & Multikill Feed (/overlay/feed)
+  * Positioned in the upper right quadrant of the screen.
+  * Translucent glass-morphism notification popups:
+      - Killer Hero Portrait vs. Victim Hero Portrait.
+      - Player IGN and Team Badges.
+      - Multikill Badges with distinctive animated glows:
+        "DOUBLE KILL", "TRIPLE KILL", "MANIAC", "SAVAGE / PENTA", "WIPEOUT".
+      - Neutral Boss kill alerts: "BLUE TEAM SECURED THE LORD".
+  * Auto-dismisses after 5.5 seconds with smooth slide-and-fade exit animations.
+
+6.4 MVP Player Spotlight (/overlay/mvp)
+  * Center-screen post-game presentation card.
+  * Showcases:
+      - High-resolution Player Portrait & IGN.
+      - Champion / Hero played with dynamic splash art.
+      - Series K/D/A, Kill Participation %, Gold Share %, Damage Share %.
+      - Casters' commentary and match notes.
+
+
+7. EVENT SOURCING ENGINE & SAFETY MECHANISMS
+--------------------------------------------------------------------------------
+
+7.1 Atomic Event Logging
+Every single operator action (kill, tower kill, boss kill, gold adjustment) is
+treated as an immutable, timestamped event stored in the match engine:
+  {
+    id: "evt_1729831920",
+    gameTimeSeconds: 482,
+    type: "kill",
+    team: "blue",
+    killerHero: { id: "fanny", name: "Fanny" },
+    victimHero: { id: "beatrix", name: "Beatrix" },
+    multikill: "triple"
+  }
+
+7.2 One-Click Instant Undo Rollback
+If an operator accidentally awards a kill to the wrong team or triggers an objective
+by mistake, pressing "UNDO LAST EVENT" pops the last event off the timeline and:
+  * Decrements the team's kill or objective score.
+  * Re-synchronizes team gold/towers to the pre-event state.
+  * Broadcasts an `EVENT_UNDONE` WebSocket message to clear erroneous overlays.
+
+7.3 Sub-10ms WebSocket State Synchronization
+Whenever state changes, the server broadcasts a `STATE_UPDATE` payload to all
+connected WebSocket clients. OBS browser sources immediately re-render via
+React state hooks without requiring any page refreshes or polling.
+
+
+8. DATABASE SCHEMA & PERSISTENCE
+--------------------------------------------------------------------------------
+The backend utilizes SQLite (stored at `server/src/db/esports.db`), pre-seeded
+with standard sample data:
+
+TABLES:
+  1. `tournaments`: ID, name, game (mlbb|hok), season, defaultFormat (BO1-BO7), status.
+  2. `teams`: ID, name, shortCode, game, logo, primaryColor, secondaryColor.
+  3. `players`: ID, teamId, name, inGameName, role, photo.
+  4. `match_records`: Completed match archives, final scores, timestamps, MVP data.
+
+
+9. COMPLETE REST API & WEBSOCKET SPECIFICATION
+--------------------------------------------------------------------------------
+
+REST API Endpoints (Base URL: http://localhost:3001):
+  GET  /api/state                 -> Retrieve full current match live state.
+  POST /api/game/switch           -> Switch game mode { "game": "mlbb" | "hok" }.
+  POST /api/clock/toggle          -> Play/Pause live match stopwatch.
+  POST /api/clock/set             -> Set clock to specific seconds { "seconds": 0 }.
+  POST /api/match/status          -> Update match status ('scheduled'|'drafting'|'live'|'ended').
+  POST /api/scoreboard/update     -> Update scores/gold/towers { blueScore, redKills, ... }.
+  POST /api/events/kill           -> Record kill event { team, killerHero, victimHero, multikill }.
+  POST /api/events/objective      -> Record neutral objective { team, objectiveId, ... }.
+  POST /api/events/tower          -> Record tower destruction { team: 'blue' | 'red' }.
+  POST /api/events/undo           -> Undo the most recent match event.
+  POST /api/draft/pick-ban        -> Commit draft pick/ban { hero, playerId, role }.
+  POST /api/draft/undo            -> Undo the most recent draft pick/ban.
+  POST /api/draft/timer/toggle    -> Play/Pause draft countdown timer.
+  POST /api/draft/phase/set       -> Manually set active draft phase index.
+  POST /api/overlay/controls      -> Toggle overlay visibility flags.
+  GET  /api/heroes/:game          -> Get hero database for MLBB or HOK.
+  GET  /api/objectives/:game      -> Get objective database for MLBB or HOK.
+  GET  /api/tournaments           -> Get tournament list.
+  GET  /api/teams?game=mlbb       -> Get team rosters.
+
+WebSocket Protocol (URL: ws://localhost:3001):
+  Incoming to Client:
+    - `{ type: "STATE_UPDATE", payload: <MatchLiveState> }`
+    - `{ type: "EVENT_ADDED", payload: <MatchEvent> }`
+    - `{ type: "EVENT_UNDONE", payload: <MatchEvent> }`
+  Outgoing to Server:
+    - `{ type: "REQUEST_SYNC" }` -> Triggers immediate full state reply.
+
+
+10. PRODUCTION WORKFLOW CHECKLIST (PRE-MATCH TO POST-MATCH)
+--------------------------------------------------------------------------------
+PHASE 1: PRE-SHOW SETUP (30 Mins Before Broadcast)
+  [ ] Run `npm run dev` in project root.
+  [ ] Verify Server is green at http://localhost:3001 and Client at http://localhost:5173.
+  [ ] Open OBS Studio and verify Browser Sources are added for:
+      - Scoreboard HUD: `http://localhost:5173/overlay/hud` (1920x1080)
+      - Draft Screen:   `http://localhost:5173/overlay/draft` (1920x1080)
+      - Kill Feed:      `http://localhost:5173/overlay/feed` (1920x1080)
+      - MVP Card:       `http://localhost:5173/overlay/mvp` (1920x1080)
+  [ ] On Dashboard (/), select Game Mode: MLBB or HOK.
+  [ ] In Teams Manager (/teams), verify team names, rosters, and logos.
+
+PHASE 2: DRAFT PHASE
+  [ ] Switch OBS scene to "DRAFT SCENE".
+  [ ] Navigate to Draft Control (/draft).
+  [ ] Start the draft timer as teams take their turns.
+  [ ] Select and lock in heroes for Blue/Red bans and picks.
+  [ ] When phase is completed, click "FINALIZE DRAFT".
+
+PHASE 3: IN-GAME LIVE PRODUCTION
+  [ ] Switch OBS scene to "IN-GAME BROADCAST".
+  [ ] On Live Match Desk (/live), start the Match Clock when game minions spawn.
+  [ ] Use tactile buttons to log:
+      - First Blood / Kills / Multikills.
+      - Tower takedowns.
+      - Turtle / Lord (MLBB) or Tyrant / Overlord (HOK) kills.
+      - Periodic gold adjustments (every 2-3 minutes).
+  [ ] Use "UNDO LAST EVENT" immediately if an error occurs.
+
+PHASE 4: POST-MATCH & MVP
+  [ ] When the Ancient / Base Crystal is destroyed, pause match clock.
+  [ ] Increment winner's series score.
+  [ ] Switch OBS scene to "POST-GAME / MVP".
+  [ ] On Overlays Hub (/overlays), select MVP player, populate stats, and toggle MVP Overlay ON.
+
+
+11. DIRECTORY STRUCTURE & FILE MAP
+--------------------------------------------------------------------------------
+d:\ARHAM\HOK-MLBB\
+├── client/                     # Front-End React 19 Application
+│   ├── src/
+│   │   ├── components/         # Shared UI (Navigation bar, status chips)
+│   │   ├── hooks/              # useMatchState hook (WebSocket auto-reconnect)
+│   │   ├── overlays/           # Transparent 1080p OBS Broadcast Overlays
+│   │   │   ├── HudOverlay.tsx      # Top bar scoreboard HUD
+│   │   │   ├── DraftOverlay.tsx    # Full-screen tournament pick/ban
+│   │   │   ├── KillFeedOverlay.tsx # Top-right kill/steal notifications
+│   │   │   └── MvpOverlay.tsx      # Post-match player spotlight card
+│   │   ├── pages/              # Operator Control Rooms
+│   │   │   ├── Dashboard.tsx       # System overview & game switcher
+│   │   │   ├── DraftControl.tsx    # Interactive pick/ban desk
+│   │   │   ├── LiveControl.tsx     # Scoreboard, kills & timeline desk
+│   │   │   ├── OverlaysHub.tsx     # Stream director & overlay preview
+│   │   │   └── TeamsManager.tsx    # Tournament teams & roster manager
+│   │   ├── services/api.ts     # REST API client
+│   │   └── App.tsx             # Route management & layout isolation
+│   └── package.json
+├── server/                     # Back-End Node.js & WebSocket State Hub
+│   ├── src/
+│   │   ├── config/             # Game configuration & asset registries
+│   │   │   ├── mlbb.ts             # 120+ MLBB heroes, roles, Turtle/Lord
+│   │   │   └── hok.ts              # 100+ HOK heroes, roles, Tyrant/Overlord
+│   │   ├── db/                 # SQLite database initialization & queries
+│   │   ├── engine/             # MatchStateEngine (Event sourcing & state logic)
+│   │   └── index.ts            # Express REST endpoints & WebSocket server
+│   └── package.json
+├── shared/                     # Shared TypeScript interfaces & types
+│   └── types.ts                # Source of truth for all data structures
+├── README.md                   # System quick-start documentation
+└── package.json                # Root concurrently runner (`npm run dev`)
+
+
+12. FREQUENTLY ASKED QUESTIONS & TROUBLESHOOTING
+--------------------------------------------------------------------------------
+Q: Why are my OBS browser overlays blank or black?
+A: In OBS Studio, ensure the Browser Source URL is correct (e.g. `http://localhost:5173/overlay/hud`),
+   Width is set to 1920, and Height is set to 1080. Check that the dev server is running.
+
+Q: How do I change team names or logos?
+A: Navigate to `http://localhost:5173/teams` in your browser. You can create teams, upload logo URLs,
+   and configure player rosters.
+
+Q: Can this be run across multiple computers on the same local network?
+A: Yes! Run `npm run dev -- --host` in the client directory. Operators on laptops on the same Wi-Fi
+   or LAN can access the control panel via `http://<HOST_IP>:5173`, while the streaming PC running
+   OBS pulls the overlays from the same IP.
+
+Q: What happens if the browser or OBS disconnects during a match?
+A: The Node.js engine retains the authoritative match state in memory and database. As soon as OBS
+   or the browser reconnects, the WebSocket immediately fires a `STATE_UPDATE` message, restoring
+   the entire match timeline and scores within milliseconds.
+
+================================================================================
+END OF MARK47 PRODUCT OVERVIEW DOCUMENTATION
+Generated: 2026-10-25 • MARK47 Esports Multi-Game Engine v2.0
+================================================================================

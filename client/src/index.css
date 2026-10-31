@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background-color: transparent !important;
+  }
+  body {
+    @apply text-slate-100 antialiased selection:bg-blue-600 selection:text-white;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+/* Custom overlay specific helpers for OBS / vMix */
+.overlay-canvas {
+  width: 1920px;
+  height: 1080px;
+  position: relative;
+  overflow: hidden;
+  background-color: transparent !important;
+}
+
+/* Glassmorphism cards */
+.glass-panel {
+  background: rgba(18, 23, 34, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-glow-blue {
+  box-shadow: 0 0 25px rgba(2, 132, 199, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.glass-panel-glow-red {
+  box-shadow: 0 0 25px rgba(220, 38, 38, 0.25);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.glass-panel-glow-gold {
+  box-shadow: 0 0 25px rgba(230, 162, 60, 0.3);
+  border: 1px solid rgba(255, 208, 75, 0.4);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
