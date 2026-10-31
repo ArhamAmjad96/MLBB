@@ -4,8 +4,10 @@ import { formatTime, formatGold } from '../utils/formatters';
 
 export const HudOverlay: React.FC = () => {
   const { state } = useMatchState();
+  const searchParams = new URLSearchParams(window.location.search);
+  const strictControl = searchParams.get('strict') === 'true';
 
-  if (!state || !state.overlayControls.showHud) {
+  if (!state || (strictControl && !state.overlayControls.showHud)) {
     return <div className="overlay-canvas bg-transparent" />;
   }
 

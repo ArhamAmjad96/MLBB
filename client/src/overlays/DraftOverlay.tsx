@@ -3,8 +3,10 @@ import { useMatchState } from '../hooks/useMatchState';
 
 export const DraftOverlay: React.FC = () => {
   const { state } = useMatchState();
+  const searchParams = new URLSearchParams(window.location.search);
+  const strictControl = searchParams.get('strict') === 'true';
 
-  if (!state || !state.overlayControls.showDraft) {
+  if (!state || (strictControl && !state.overlayControls.showDraft)) {
     return <div className="overlay-canvas bg-transparent" />;
   }
 
