@@ -62,13 +62,16 @@ export class MatchStateEngine {
 
     // Draft Timer ticker (1s)
     this.draftInterval = setInterval(() => {
-      if (this.currentState.status === 'drafting' && this.currentState.draft.isTimerRunning) {
+      if (this.currentState.draft.isTimerRunning) {
         if (this.currentState.draft.timerRemaining > 0) {
           this.currentState.draft.timerRemaining -= 1;
           this.broadcast({ 
             type: 'CLOCK_TICK', 
             payload: { draftTimer: this.currentState.draft.timerRemaining } 
           });
+        } else {
+          this.currentState.draft.isTimerRunning = false;
+          this.broadcastState();
         }
       }
     }, 1000);
@@ -545,6 +548,9 @@ export class MatchStateEngine {
 
   public toggleDraftTimer(): boolean {
     this.currentState.draft.isTimerRunning = !this.currentState.draft.isTimerRunning;
+    if (this.currentState.draft.isTimerRunning && (this.currentState.status === 'ready' || this.currentState.status === 'scheduled')) {
+      this.currentState.status = 'drafting';
+    }
     this.auditAction('DRAFT_TIMER_TOGGLED', `Draft timer is now ${this.currentState.draft.isTimerRunning ? 'RUNNING' : 'PAUSED'}`);
     this.broadcastState();
     return this.currentState.draft.isTimerRunning;
