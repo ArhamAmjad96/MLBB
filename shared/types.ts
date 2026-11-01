@@ -81,6 +81,7 @@ export interface DraftSlot {
 }
 
 export interface TeamMatchState {
+  coachName?: string;
   teamId: string;
   name: string;
   shortCode: string;
@@ -114,7 +115,8 @@ export type SpecialEventType =
   | 'overlord_steal'
   | 'tower_destroyed'
   | 'victory'
-  | 'wipeout';
+  | 'wipeout'
+  | 'mvp';
 
 export interface MatchEvent {
   id: string;
@@ -144,6 +146,7 @@ export interface MatchEvent {
     primaryColor: string;
   };
   message?: string;
+  announcementOnly?: boolean;
 }
 
 export type MatchLifecycleStatus = 'scheduled' | 'ready' | 'drafting' | 'live' | 'paused' | 'ended' | 'archived';
@@ -188,6 +191,20 @@ export interface MatchLiveState {
       notes: string;
     };
     announcementText?: string;
+    eventHoldSeconds?: number;
+    spectatorSettings?: SpectatorOverlaySettings;
+    mvpPresentation?: { nonce: string; requestedAt: number };
+    branding?: {
+      title?: string;
+      subtitle?: string;
+      logo?: string;
+      sponsors?: { name: string; subtitle?: string; logo?: string }[];
+    };
+    draftStageLabel?: string;
+    draftStats?: { heroName: string; avatar: string; picks: number; winRate?: number }[];
+    hudPlayers?: { blue?: { kda?: string; level?: number; spells?: string[] }[]; red?: { kda?: string; level?: number; spells?: string[] }[] };
+    eventReplay?: { nonce: string; event: MatchEvent; requestedAt?: number };
+    eventClearToken?: string;
   };
   lastActionAudit?: {
     action: string;
@@ -200,4 +217,23 @@ export interface MatchLiveState {
 export interface WsMessage {
   type: 'STATE_UPDATE' | 'EVENT_ADDED' | 'EVENT_UNDONE' | 'CLOCK_TICK' | 'RESET_STATE' | 'REQUEST_SYNC';
   payload?: any;
+}
+
+export type SpectatorMode = 'hybrid' | 'custom';
+export interface OverlayPlacement { x: number; y: number; scale: number }
+export interface SpectatorLayout {
+  safeZones: { left: number; right: number; top: number; bottom: number };
+  scoreboard: OverlayPlacement;
+  event: OverlayPlacement;
+}
+export interface SpectatorOverlaySettings {
+  mode: SpectatorMode;
+  layouts: { hybrid: SpectatorLayout; custom: SpectatorLayout };
+  round: string;
+  showKills: boolean;
+  showClock: boolean;
+  showObjectives: boolean;
+  showPlayerPanels: boolean;
+  manualGold?: { blue: number; red: number };
+  presets: { id: string; name: string; mode: SpectatorMode; layout: SpectatorLayout }[];
 }

@@ -136,3 +136,5 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+.operator-shell {background:#111014!important;accent-color:#d9b878}.operator-shell .glass-panel,.operator-shell [class*="bg-slate-900"]{background:#1b191f;border-color:#443c30}.operator-shell [class*="text-blue-"],.operator-shell [class*="text-indigo-"]{color:#dfc28e}.operator-shell [class*="bg-blue-600"],.operator-shell [class*="bg-indigo-600"]{background:#75603c}.operator-shell button:focus-visible,.operator-shell a:focus-visible{outline:2px solid #dfc28e;outline-offset:3px}

@@ -26,6 +26,31 @@ export const api = {
     return res.json();
   },
 
+  async updateMatchSetup(data: any): Promise<{ success: boolean; state: MatchLiveState }> {
+    const res = await fetch(`${API_BASE}/match/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async saveTeam(team: any): Promise<{ success: boolean; teamId: string }> {
+    const res = await fetch(`${API_BASE}/teams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(team)
+    });
+    return res.json();
+  },
+
+  async deleteTeam(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/teams/${id}`, {
+      method: 'DELETE'
+    });
+    return res.json();
+  },
+
   async setMatchTeams(blueTeamId: string, redTeamId: string): Promise<{ success: boolean; error?: string }> {
     const res = await fetch(`${API_BASE}/match/teams`, {
       method: 'POST',
@@ -146,6 +171,7 @@ export const api = {
     killerHero?: HeroDefinition;
     victimHero?: HeroDefinition;
     isSteal?: boolean;
+    announcementOnly?: boolean;
     headline?: string;
     subline?: string;
   }): Promise<{ success: boolean; duplicate?: boolean }> {
@@ -211,11 +237,12 @@ export const api = {
   },
 
   async updateOverlayControls(controls: Partial<MatchLiveState['overlayControls']>): Promise<void> {
-    await fetch(`${API_BASE}/overlay/controls`, {
+    const response = await fetch(`${API_BASE}/overlay/controls`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(controls)
     });
+    if (!response.ok) throw new Error(`Could not save overlay settings (${response.status})`);
   },
 
   async getHeroes(game: GameType): Promise<HeroDefinition[]> {

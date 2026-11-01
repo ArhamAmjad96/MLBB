@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Store database in project root/data directory
-const dataDir = path.resolve(__dirname, '../../../data');
+const dataDir = process.env.MARK47_DATA_DIR ? path.resolve(process.env.MARK47_DATA_DIR) : path.resolve(__dirname, '../../../data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -17,6 +17,7 @@ export const db = new DatabaseSync(dbPath);
 
 export function initDatabase() {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS production_settings (key TEXT PRIMARY KEY, data_json TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS tournaments (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -179,4 +180,12 @@ function seedInitialData() {
   insertPlayer.run('p_xiangyu', 'team_wolves', 'Cai Youzhe', 'XiangYu', 'MID', 'https://api.dicebear.com/7.x/avataaars/svg?seed=XiangYu');
   insertPlayer.run('p_yaoyang', 'team_wolves', 'Wang Yang', 'YaoYang', 'FARM', 'https://api.dicebear.com/7.x/avataaars/svg?seed=YaoYang');
   insertPlayer.run('p_fan', 'team_wolves', 'Yang Fan', 'Fan', 'ROAM', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Fan');
+}
+
+export function loadProductionSetting(key: string): unknown {
+  const row = db.prepare('SELECT data_json FROM production_settings WHERE key = ?').get(key) as { data_json: string } | undefined;
+  try { return row ? JSON.parse(row.data_json) : undefined; } catch { return undefined; }
+}
+export function saveProductionSetting(key: string, value: unknown) {
+  db.prepare('INSERT OR REPLACE INTO production_settings (key, data_json) VALUES (?, ?)').run(key, JSON.stringify(value));
 }

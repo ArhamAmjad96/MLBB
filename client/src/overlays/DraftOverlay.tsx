@@ -1,265 +1,74 @@
-import React from 'react';
+import { DraftBranding, SponsorBranding } from './OverlayBranding';
+import { useBroadcastReady } from './useBroadcastReady';
 import { useMatchState } from '../hooks/useMatchState';
+import { formatTime } from '../utils/formatters';
+import { ReferenceBackdrop, ArtSlice, DraftFrame } from './ReferenceArt';
+import { isReferencePreview } from './referenceAssets';
+import { referenceState } from './referencePreview';
+import type { TeamMatchState } from '../../../shared/types';
+import './broadcast.css';
 
-export const DraftOverlay: React.FC = () => {
-  const { state } = useMatchState();
-  const searchParams = new URLSearchParams(window.location.search);
-  const strictControl = searchParams.get('strict') === 'true';
+function TeamLogo({ team, side, reference }: {team:TeamMatchState; side:number; reference:boolean}) {
+  return reference
+    ? <ArtSlice x={side ? 1172 : 422} y={15} width={74} height={82} />
+    : team.logo ? <img src={team.logo} alt="" /> : <span>{team.shortCode.slice(0,1)}</span>;
+}
 
-  if (!state || (strictControl && !state.overlayControls.showDraft)) {
-    return <div className="overlay-canvas bg-transparent" />;
-  }
+export function DraftOverlay() {
+  const ready=useBroadcastReady();
+  const {state:liveState} = useMatchState();
+  if (!liveState || !ready) return null;
+  const reference = isReferencePreview();
+  const state = reference ? referenceState(liveState,true) : liveState;
+  const preview = new URLSearchParams(location.search).get('preview') === 'true';
+  const phase = state.draft.completed ? undefined : state.draft.phases[state.draft.activePhaseIndex];
 
-  const { teamBlue, teamRed, draft, game, tournamentName, matchName } = state;
-  const activePhase = draft.phases[draft.activePhaseIndex];
-
-  return (
-    <div className="overlay-canvas bg-[#070a12] text-white flex flex-col justify-between p-10 select-none overflow-hidden relative">
-      
-      {/* Dynamic Background Glows */}
-      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-sky-600/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-red-600/10 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* ================= HEADER ================= */}
-      <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-5">
-        
-        {/* Blue Team Header */}
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-slate-900 p-2 border-2 border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)]">
-            <img src={teamBlue.logo} alt="" className="w-full h-full object-contain" />
-          </div>
-          <div>
-            <span className="text-xs font-mono font-bold text-sky-400 uppercase tracking-widest">
-              {teamBlue.shortCode} • BLUE SIDE
-            </span>
-            <h1 className="text-3xl font-black tracking-wide uppercase">{teamBlue.name}</h1>
-          </div>
-        </div>
-
-        {/* Center Countdown & Match Title */}
-        <div className="flex flex-col items-center">
-          <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-slate-400 font-bold mb-1">
-            {tournamentName} • {matchName}
-          </span>
-
-          <div className="relative flex items-center justify-center">
-            <div className={`w-24 h-24 rounded-full border-4 flex flex-col items-center justify-center bg-slate-950/90 shadow-2xl transition-all ${
-              activePhase?.team === 'blue' 
-                ? 'border-sky-500 shadow-[0_0_25px_rgba(2,132,199,0.5)]' 
-                : 'border-red-500 shadow-[0_0_25px_rgba(220,38,38,0.5)]'
-            }`}>
-              <span className={`font-mono text-4xl font-black ${
-                draft.timerRemaining <= 10 ? 'text-red-500 animate-pulse' : 'text-white'
-              }`}>
-                {draft.timerRemaining}
-              </span>
-              <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400">
-                {activePhase ? activePhase.type : 'READY'}
-              </span>
-            </div>
-          </div>
-
-          <span className="text-xs font-bold text-amber-400 mt-2 uppercase tracking-wider">
-            {activePhase ? `${activePhase.label}` : 'DRAFT PHASE COMPLETED'}
-          </span>
-        </div>
-
-        {/* Red Team Header */}
-        <div className="flex items-center gap-4 text-right">
-          <div>
-            <span className="text-xs font-mono font-bold text-red-400 uppercase tracking-widest">
-              RED SIDE • {teamRed.shortCode}
-            </span>
-            <h1 className="text-3xl font-black tracking-wide uppercase">{teamRed.name}</h1>
-          </div>
-          <div className="w-16 h-16 rounded-2xl bg-slate-900 p-2 border-2 border-red-400 shadow-[0_0_20px_rgba(248,113,113,0.3)]">
-            <img src={teamRed.logo} alt="" className="w-full h-full object-contain" />
-          </div>
-        </div>
-
-      </div>
-
-      {/* ================= 5v5 PICKS SHOWCASE ================= */}
-      <div className="relative z-10 grid grid-cols-2 gap-12 flex-1 my-6 items-center">
-        
-        {/* Blue 5 Picks */}
-        <div className="grid grid-cols-5 gap-3 h-[480px]">
-          {teamBlue.picks.map((pick, i) => {
-            const isCurrentPick = activePhase?.team === 'blue' && activePhase?.type === 'pick' && activePhase?.slotIndex === i;
-
-            return (
-              <div 
-                key={i}
-                className={`relative rounded-2xl overflow-hidden border-2 bg-gradient-to-b from-slate-900 to-slate-950 flex flex-col justify-end p-3 transition-all ${
-                  isCurrentPick 
-                    ? 'border-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.6)] scale-[1.03] ring-2 ring-sky-300' 
-                    : 'border-white/10'
-                }`}
-              >
-                {/* Hero Portrait */}
-                {pick.heroAvatar ? (
-                  <img 
-                    src={pick.heroAvatar} 
-                    alt={pick.heroName} 
-                    className="absolute inset-0 w-full h-full object-cover object-top opacity-90 transition-transform duration-500" 
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${pick.heroName || 'pick'}`;
-                    }}
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center font-mono text-slate-700 text-3xl font-black">
-                    P{i+1}
-                  </div>
-                )}
-
-                {/* Dark Gradient Overlay for Typography */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-                {/* Pick Text Info */}
-                <div className="relative z-10">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-sky-400 font-bold block">
-                    {pick.role || `Slot ${i+1}`}
-                  </span>
-                  <h3 className="text-base font-black text-white uppercase leading-tight truncate">
-                    {pick.heroName || 'PICKING...'}
-                  </h3>
-                  <span className="text-[11px] text-slate-300 font-medium truncate block">
-                    {pick.playerName || `Player ${i+1}`}
-                  </span>
-                </div>
-              </div>
-            );
+  return <div className="overlay-canvas broadcast draft-output">
+    {(state.overlayControls.showDraft || preview) && <div className="reference-stage"><ReferenceBackdrop kind="draft"/>
+      <DraftFrame customLogo={!!state.overlayControls.branding?.logo}/>
+      <DraftBranding state={state}/><SponsorBranding state={state} variant="draft"/>
+      <header className="draft-live-header">
+        {[state.teamBlue,state.teamRed].map((team,side) => <div className={`draft-live-team side-${side}`} key={side}>
+          <div className="draft-paper" />
+          <div className="draft-team-logo"><TeamLogo team={team} side={side} reference={reference} /></div>
+          <b>{team.shortCode || team.name}</b>
+        </div>)}
+        <div className="draft-scoreplate"/><ArtSlice x={781} y={51} width={112} height={36} className="draft-score-flourish"/><div className="draft-series"><b>{state.teamBlue.seriesScore}</b><i>{state.format}</i><b>{state.teamRed.seriesScore}</b></div>
+        <div className="draft-timer-blank"/><div className="draft-countdown"><span>{state.draft.completed ? 'DRAFT COMPLETE' : 'DRAFTING PHASE'}</span><time>{formatTime(state.draft.timerRemaining)}</time></div>
+        <div className="draft-match-name">{state.matchName}</div>
+      </header>
+      {!!state.overlayControls.draftStats?.length && <aside className="most-picked">
+        <h2>MOST PICKED HEROES <span>♢</span></h2>
+        {state.overlayControls.draftStats.slice(0,5).map((hero,i) => <div className="most-picked-row" key={`${hero.heroName}-${i}`}>
+          {reference ? <ArtSlice x={34} y={205+i*56} width={66} height={48} /> : <img src={hero.avatar} alt="" />}
+          <div><b>{hero.heroName}</b><small>{hero.winRate === undefined ? 'PICKS' : `${hero.winRate}% WINRATE`}</small></div>
+          <strong>{hero.picks}</strong><span className="purple-fold" />
+        </div>)}
+      </aside>}
+      {[state.teamBlue,state.teamRed].map((team,side) => <section className={`draft-roster roster-${side}`} key={side} aria-label={`${team.name} draft`}>
+        <div className="draft-ban-row">
+          {Array.from({length:5},(_,i) => { const ban=team.bans[i]; const active=!reference && phase?.type==='ban' && phase.team===(side?'red':'blue') && phase.slotIndex===i;
+            return <div className={`draft-ban ${active?'active-slot':''}`} key={i} aria-label={ban?.heroName ? `Banned ${ban.heroName}` : `Ban slot ${i+1}`}>
+              {ban?.heroAvatar && <div key={ban.heroId} className="ban-selection"><img src={ban.heroAvatar} alt={ban.heroName}/><span>╱</span></div>}
+            </div>;
           })}
         </div>
-
-        {/* Red 5 Picks */}
-        <div className="grid grid-cols-5 gap-3 h-[480px]">
-          {teamRed.picks.map((pick, i) => {
-            const isCurrentPick = activePhase?.team === 'red' && activePhase?.type === 'pick' && activePhase?.slotIndex === i;
-
-            return (
-              <div 
-                key={i}
-                className={`relative rounded-2xl overflow-hidden border-2 bg-gradient-to-b from-slate-900 to-slate-950 flex flex-col justify-end p-3 transition-all ${
-                  isCurrentPick 
-                    ? 'border-red-400 shadow-[0_0_30px_rgba(248,113,113,0.6)] scale-[1.03] ring-2 ring-red-300' 
-                    : 'border-white/10'
-                }`}
-              >
-                {/* Hero Portrait */}
-                {pick.heroAvatar ? (
-                  <img 
-                    src={pick.heroAvatar} 
-                    alt={pick.heroName} 
-                    className="absolute inset-0 w-full h-full object-cover object-top opacity-90 transition-transform duration-500" 
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${pick.heroName || 'pick'}`;
-                    }}
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center font-mono text-slate-700 text-3xl font-black">
-                    P{i+1}
-                  </div>
-                )}
-
-                {/* Dark Gradient Overlay for Typography */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-                {/* Pick Text Info */}
-                <div className="relative z-10 text-right">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-red-400 font-bold block">
-                    {pick.role || `Slot ${i+1}`}
-                  </span>
-                  <h3 className="text-base font-black text-white uppercase leading-tight truncate">
-                    {pick.heroName || 'PICKING...'}
-                  </h3>
-                  <span className="text-[11px] text-slate-300 font-medium truncate block">
-                    {pick.playerName || `Player ${i+1}`}
-                  </span>
-                </div>
+        <div className="draft-coach"><small>COACH</small><b>{team.coachName || '—'}</b></div>
+        <div className="draft-picks">
+          {Array.from({length:5},(_,i) => {const pick=team.picks[i];const active=!reference && phase?.type==='pick' && phase.team===(side?'red':'blue') && phase.slotIndex===i;
+            return <article className={`draft-pick ${active?'active-slot':''}`} key={i}>
+              <div className="pick-art">
+                {pick?.heroAvatar && <div className="pick-selection" key={pick.heroId}><img src={pick.heroAvatar} alt={pick.heroName}/></div>}
+                {pick?.heroAvatar && <b className="pick-hero-name">{pick.heroName}</b>}
+                {active && <span className="pick-active-label">{state.draft.isTimerRunning?'PICKING':'PAUSED'}</span>}
               </div>
-            );
+              <div className="draft-player-name">{pick?.playerName || `PLAYER${String(i+1+side*5).padStart(2,'0')}`}</div>
+            </article>;
           })}
         </div>
-
-      </div>
-
-      {/* ================= BANS FOOTER ================= */}
-      <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-4">
-        
-        {/* Blue Bans */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-mono font-bold uppercase text-slate-400">BLUE BANS:</span>
-          <div className="flex items-center gap-2">
-            {teamBlue.bans.map((ban, i) => (
-              <div 
-                key={i}
-                className="w-14 h-14 rounded-xl bg-slate-950 border border-slate-700 overflow-hidden relative flex items-center justify-center shadow-md"
-              >
-                {ban.heroAvatar ? (
-                  <>
-                    <img 
-                      src={ban.heroAvatar} 
-                      alt="" 
-                      className="w-full h-full object-cover grayscale contrast-125" 
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${ban.heroName || 'ban'}`;
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-red-950/60 flex items-center justify-center font-black text-red-400 text-lg">
-                      ✕
-                    </div>
-                  </>
-                ) : (
-                  <span className="text-xs font-mono font-bold text-slate-600">B{i+1}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Game Mode Pill */}
-        <div className="px-4 py-1.5 rounded-full bg-slate-900 border border-white/10 text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">
-          {game === 'mlbb' ? 'MOBILE LEGENDS: BANG BANG' : 'HONOR OF KINGS'}
-        </div>
-
-        {/* Red Bans */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            {teamRed.bans.map((ban, i) => (
-              <div 
-                key={i}
-                className="w-14 h-14 rounded-xl bg-slate-950 border border-slate-700 overflow-hidden relative flex items-center justify-center shadow-md"
-              >
-                {ban.heroAvatar ? (
-                  <>
-                    <img 
-                      src={ban.heroAvatar} 
-                      alt="" 
-                      className="w-full h-full object-cover grayscale contrast-125" 
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${ban.heroName || 'ban'}`;
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-red-950/60 flex items-center justify-center font-black text-red-400 text-lg">
-                      ✕
-                    </div>
-                  </>
-                ) : (
-                  <span className="text-xs font-mono font-bold text-slate-600">B{i+1}</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <span className="text-xs font-mono font-bold uppercase text-slate-400">:RED BANS</span>
-        </div>
-
-      </div>
-
-    </div>
-  );
-};
+      </section>)}
+      <div className="draft-stage-name">{state.overlayControls.draftStageLabel || 'GROUP STAGE'}</div>
+      <div className="draft-versus-backdrop"/><div className="draft-versus"><b>{state.teamBlue.shortCode}</b><i>VS</i><b>{state.teamRed.shortCode}</b></div>
+    </div>}
+  </div>;
+}

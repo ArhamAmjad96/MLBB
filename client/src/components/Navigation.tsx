@@ -2,13 +2,15 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   Trophy, 
-  Gamepad2, 
+  LayoutDashboard, 
+  Radio, 
+  Swords, 
   Tv, 
   Users, 
-  Swords, 
-  Radio, 
   Play, 
-  Pause 
+  Pause,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { MatchLiveState, GameType } from '../../../shared/types';
 import { api } from '../services/api';
@@ -32,158 +34,176 @@ export const Navigation: React.FC<NavigationProps> = ({ state, isConnected }) =>
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0B0F14]/95 backdrop-blur-md border-b border-[#273244] text-[#F3F6FA] px-4 py-2.5 shadow-lg select-none font-sans">
+    <header className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 text-slate-100 px-4 lg:px-6 py-2.5 shadow-xl select-none">
       <div className="max-w-[1700px] mx-auto flex items-center justify-between gap-4">
         
-        {/* Brand & Game Mode Selector */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#00D1C7] via-[#2D8CFF] to-[#F5B942] flex items-center justify-center font-black tracking-wider text-xs text-black shadow-md">
-              47
+        {/* Left: Brand & Game Switcher */}
+        <div className="flex items-center gap-3 sm:gap-5">
+          <NavLink to="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-600 to-amber-500 p-[1px] shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-all">
+              <div className="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center font-black text-xs text-white tracking-wider">
+                47
+              </div>
             </div>
             <div>
-              <span className="font-black tracking-wider text-base text-[#F3F6FA] block leading-none">MARK47</span>
-              <span className="text-[9px] block text-[#9FB0C5] font-mono font-bold tracking-widest mt-0.5">ESPORTS PRODUCTION</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-black tracking-wider text-base text-white">MARK47</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">PRO</span>
+              </div>
+              <span className="text-[9px] block text-slate-400 font-medium tracking-wider">ESPORTS STUDIO</span>
             </div>
-          </div>
+          </NavLink>
 
-          {/* Game Switcher Pill */}
-          <div className="flex items-center bg-[#121922] p-1 rounded-lg border border-[#273244]">
+          {/* Clean Segmented Game Switcher */}
+          <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner">
             <button
               onClick={() => handleGameSwitch('mlbb')}
-              className={`px-3 py-1 text-xs font-black rounded-md flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                 isMlbb 
-                  ? 'bg-[#2D8CFF] text-white shadow-[0_0_12px_rgba(45,140,255,0.5)]' 
-                  : 'text-[#9FB0C5] hover:text-[#F3F6FA]'
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30' 
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-200"></span>
+              <span className={`w-1.5 h-1.5 rounded-full ${isMlbb ? 'bg-white' : 'bg-slate-500'}`} />
               MLBB
             </button>
             <button
               onClick={() => handleGameSwitch('hok')}
-              className={`px-3 py-1 text-xs font-black rounded-md flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                 !isMlbb 
-                  ? 'bg-[#F59E0B] text-black shadow-[0_0_12px_rgba(245,158,11,0.5)]' 
-                  : 'text-[#9FB0C5] hover:text-[#F3F6FA]'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30' 
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
+              <span className={`w-1.5 h-1.5 rounded-full ${!isMlbb ? 'bg-slate-950' : 'bg-slate-500'}`} />
               HOK
             </button>
           </div>
         </div>
 
-        {/* Center: Live Match Status & Quick Clock */}
+        {/* Center: Live Match Quick Pill (Visible on md+ screens) */}
         {state && (
-          <div className="hidden lg:flex items-center gap-4 bg-[#121922] px-4 py-1.5 rounded-xl border border-[#273244]">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[#9FB0C5]">{state.tournamentName}</span>
-              <span className="text-[#273244]">•</span>
-              <span className="text-xs font-black text-[#F3F6FA]">{state.matchName}</span>
-            </div>
-
-            <div className="h-4 w-[1px] bg-[#273244]"></div>
-
-            {/* Quick Match Score */}
-            <div className="flex items-center gap-2 text-xs font-bold">
-              <span className="text-[#2D8CFF] font-black">{state.teamBlue.shortCode}</span>
-              <span className="bg-[#0B0F14] px-2 py-0.5 rounded text-[#F3F6FA] font-mono border border-[#273244]">{state.teamBlue.seriesScore}</span>
-              <span className="text-[#9FB0C5]">-</span>
-              <span className="bg-[#0B0F14] px-2 py-0.5 rounded text-[#F3F6FA] font-mono border border-[#273244]">{state.teamRed.seriesScore}</span>
-              <span className="text-[#FF4D67] font-black">{state.teamRed.shortCode}</span>
-            </div>
-
-            <div className="h-4 w-[1px] bg-[#273244]"></div>
-
-            {/* Match Clock Indicator */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleClockToggle}
-                className={`p-1 rounded-md text-xs transition-colors cursor-pointer ${
-                  state.isClockRunning ? 'bg-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444]/30' : 'bg-[#22C55E]/20 text-[#22C55E] hover:bg-[#22C55E]/30'
-                }`}
-                title={state.isClockRunning ? 'Pause Clock' : 'Start Clock'}
-              >
-                {state.isClockRunning ? <Pause size={13} /> : <Play size={13} />}
-              </button>
-              <span className="font-mono text-sm font-black text-[#F5B942] min-w-[44px]">
-                {formatTime(state.clockSeconds)}
+          <div className="hidden lg:flex items-center gap-3 bg-slate-900/70 hover:bg-slate-900/90 border border-slate-800/90 px-4 py-1.5 rounded-2xl shadow-sm transition-all">
+            {/* Status indicator */}
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${
+                state.status === 'live' ? 'bg-emerald-400 animate-pulse ring-2 ring-emerald-400/20' :
+                state.status === 'drafting' ? 'bg-amber-400 animate-pulse ring-2 ring-amber-400/20' :
+                state.status === 'paused' ? 'bg-amber-500' : 'bg-slate-500'
+              }`} />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                {state.status}
               </span>
             </div>
 
-            {/* Live Status Badge */}
+            <div className="h-3.5 w-px bg-slate-800" />
+
+            {/* Match summary */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-400 font-medium truncate max-w-[120px]">{state.matchName}</span>
+              <div className="flex items-center gap-1.5 font-bold">
+                <span className="text-blue-400 font-extrabold">{state.teamBlue.shortCode}</span>
+                <span className="bg-slate-950 px-2 py-0.5 rounded-md text-white font-mono text-xs border border-slate-800">
+                  {state.teamBlue.seriesScore} - {state.teamRed.seriesScore}
+                </span>
+                <span className="text-rose-400 font-extrabold">{state.teamRed.shortCode}</span>
+              </div>
+            </div>
+
+            <div className="h-3.5 w-px bg-slate-800" />
+
+            {/* Quick Clock Toggle */}
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${
-                state.status === 'live' ? 'bg-[#22C55E] animate-pulse' :
-                state.status === 'drafting' ? 'bg-[#F59E0B] animate-pulse' :
-                state.status === 'paused' ? 'bg-[#F5B942]' : 'bg-[#9FB0C5]'
-              }`} />
-              <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-[#9FB0C5]">
-                {state.status}
+              <button
+                onClick={handleClockToggle}
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                  state.isClockRunning 
+                    ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 ring-1 ring-rose-500/30' 
+                    : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 ring-1 ring-emerald-500/30'
+                }`}
+                title={state.isClockRunning ? 'Pause Clock' : 'Start Clock'}
+              >
+                {state.isClockRunning ? <Pause size={12} /> : <Play size={12} />}
+              </button>
+              <span className="font-mono text-xs font-bold text-amber-400 tracking-wider min-w-[40px]">
+                {formatTime(state.clockSeconds)}
               </span>
             </div>
           </div>
         )}
 
-        {/* Navigation Links */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        {/* Right: Modern Segmented Navigation Links */}
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <NavLink
             to="/"
             end
-            className={({ isActive }) => `px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-              isActive ? 'bg-[#182231] text-[#00D1C7] border border-[#273244]' : 'text-[#9FB0C5] hover:text-[#F3F6FA] hover:bg-[#121922]'
+            className={({ isActive }) => `px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+              isActive 
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
             }`}
           >
-            <Gamepad2 size={15} />
-            <span className="hidden sm:inline">Dashboard</span>
+            <LayoutDashboard size={15} />
+            <span className="hidden sm:inline">Overview</span>
           </NavLink>
 
           <NavLink
             to="/live"
-            className={({ isActive }) => `px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-              isActive ? 'bg-[#FF4D67]/20 text-[#FF4D67] border border-[#FF4D67]/40' : 'text-[#9FB0C5] hover:text-[#F3F6FA] hover:bg-[#121922]'
+            className={({ isActive }) => `px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+              isActive 
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20' 
+                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
             }`}
           >
-            <Radio size={15} className="text-[#FF4D67]" />
+            <Radio size={15} className="animate-pulse" />
             <span>Live Match</span>
           </NavLink>
 
           <NavLink
             to="/draft"
-            className={({ isActive }) => `px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-              isActive ? 'bg-[#F59E0B]/20 text-[#F5B942] border border-[#F59E0B]/40' : 'text-[#9FB0C5] hover:text-[#F3F6FA] hover:bg-[#121922]'
+            className={({ isActive }) => `px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+              isActive 
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' 
+                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
             }`}
           >
-            <Swords size={15} className="text-[#F5B942]" />
-            <span>Draft Room</span>
+            <Swords size={15} />
+            <span className="hidden sm:inline">Draft Room</span>
           </NavLink>
 
           <NavLink
             to="/overlays"
-            className={({ isActive }) => `px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-              isActive ? 'bg-[#2D8CFF]/20 text-[#2D8CFF] border border-[#2D8CFF]/40' : 'text-[#9FB0C5] hover:text-[#F3F6FA] hover:bg-[#121922]'
+            className={({ isActive }) => `px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+              isActive 
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
+                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
             }`}
           >
-            <Tv size={15} className="text-[#2D8CFF]" />
-            <span className="hidden sm:inline">Overlays</span>
+            <Tv size={15} />
+            <span>Overlays</span>
           </NavLink>
 
           <NavLink
             to="/teams"
-            className={({ isActive }) => `px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-              isActive ? 'bg-[#182231] text-[#F3F6FA] border border-[#273244]' : 'text-[#9FB0C5] hover:text-[#F3F6FA] hover:bg-[#121922]'
+            className={({ isActive }) => `px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+              isActive 
+                ? 'bg-slate-800 text-white border border-slate-700' 
+                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
             }`}
           >
             <Users size={15} />
             <span className="hidden md:inline">Teams</span>
           </NavLink>
 
-          {/* Connection status badge */}
-          <div className="ml-2 pl-2 border-l border-[#273244] flex items-center">
+          {/* Connection Status Pill */}
+          <div className="ml-1 pl-2 border-l border-slate-800 flex items-center">
             <span 
-              className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-[#22C55E] shadow-[0_0_8px_rgba(34,197,94,0.7)]' : 'bg-[#EF4444] animate-pulse'}`}
-              title={isConnected ? 'Server Connected (ws://localhost:3001)' : 'Connecting to Server...'}
+              className={`w-2.5 h-2.5 rounded-full transition-all ${
+                isConnected 
+                  ? 'bg-emerald-400 ring-4 ring-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.5)]' 
+                  : 'bg-rose-500 animate-pulse ring-4 ring-rose-500/20'
+              }`}
+              title={isConnected ? 'Server Connected (Port 3001)' : 'Connecting to Server...'}
             />
           </div>
         </div>

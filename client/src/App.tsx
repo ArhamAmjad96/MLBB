@@ -28,8 +28,8 @@ function MainLayout() {
       const root = document.getElementById('root');
       if (root) root.style.backgroundColor = 'transparent';
     } else {
-      document.documentElement.style.backgroundColor = '#070a12';
-      document.body.style.backgroundColor = '#070a12';
+      document.documentElement.style.backgroundColor = '#0B0F17';
+      document.body.style.backgroundColor = '#0B0F17';
     }
   }, [isOverlay]);
 
@@ -45,9 +45,9 @@ function MainLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col font-sans">
+    <div className="operator-shell min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       <Navigation state={state} isConnected={isConnected} />
-      <main className="flex-1 pb-12">
+      <main className="flex-1 pb-16">
         <Routes>
           <Route path="/" element={<Dashboard state={state} isConnected={isConnected} />} />
           <Route path="/live" element={<LiveControl state={state} />} />

@@ -31,3 +31,12 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Isolated broadcast verification database
+data/broadcast-test/
+
+# Isolated hybrid overlay verification
+data/hybrid-test/
+
+# Local verification screenshots
+/artifacts/

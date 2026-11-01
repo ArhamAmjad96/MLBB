@@ -1,3 +1,4 @@
+import { normalizeSpectatorSettings } from '../../../shared/overlayLayout.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { 
   GameType, 
@@ -12,7 +13,7 @@ import {
 } from '../../../shared/types.js';
 import { MLBB_DRAFT_CONFIG, MLBB_HEROES } from '../config/mlbb.js';
 import { HOK_DRAFT_CONFIG, HOK_HEROES } from '../config/hok.js';
-import { db, saveActiveState, loadActiveState, clearActiveState } from '../db/index.js';
+import { db, saveActiveState, loadActiveState, clearActiveState, loadProductionSetting, saveProductionSetting } from '../db/index.js';
 
 export class MatchStateEngine {
   private currentState: MatchLiveState;
@@ -37,6 +38,7 @@ export class MatchStateEngine {
       this.saveState();
     }
 
+    this.currentState.overlayControls.spectatorSettings = normalizeSpectatorSettings(loadProductionSetting('spectator-overlay') ?? this.currentState.overlayControls.spectatorSettings);
     this.startTimers();
   }
 
@@ -179,6 +181,7 @@ export class MatchStateEngine {
       },
       events: [],
       overlayControls: {
+        spectatorSettings: normalizeSpectatorSettings(loadProductionSetting('spectator-overlay')),
         activeOverlay: 'none',
         previewOverlay: 'hud',
         showHud: true,
@@ -349,6 +352,71 @@ export class MatchStateEngine {
     }
   }
 
+  // --- Update Match & Team Setup Directly ---
+  public updateMatchSetup(data: {
+    tournamentName?: string;
+    matchName?: string;
+    format?: 'BO1' | 'BO3' | 'BO5' | 'BO7';
+    currentGameNumber?: number;
+    teamBlue?: {
+      name?: string;
+      shortCode?: string;
+      logo?: string;
+      primaryColor?: string;
+      coachName?: string;
+      players?: { inGameName: string; role: string; name?: string }[];
+    };
+    teamRed?: {
+      name?: string;
+      shortCode?: string;
+      logo?: string;
+      primaryColor?: string;
+      coachName?: string;
+      players?: { inGameName: string; role: string; name?: string }[];
+    };
+  }): { success: boolean; state: MatchLiveState } {
+    if (data.tournamentName) this.currentState.tournamentName = data.tournamentName;
+    if (data.matchName) this.currentState.matchName = data.matchName;
+    if (data.format) this.currentState.format = data.format;
+    if (typeof data.currentGameNumber === 'number') this.currentState.currentGameNumber = data.currentGameNumber;
+
+    if (data.teamBlue) {
+      if (typeof data.teamBlue.coachName === "string") this.currentState.teamBlue.coachName = data.teamBlue.coachName.slice(0, 40);
+      if (data.teamBlue.name) this.currentState.teamBlue.name = data.teamBlue.name;
+      if (data.teamBlue.shortCode) this.currentState.teamBlue.shortCode = data.teamBlue.shortCode;
+      if (data.teamBlue.logo) this.currentState.teamBlue.logo = data.teamBlue.logo;
+      if (data.teamBlue.primaryColor) this.currentState.teamBlue.primaryColor = data.teamBlue.primaryColor;
+      if (Array.isArray(data.teamBlue.players)) {
+        data.teamBlue.players.slice(0, 5).forEach((p, idx) => {
+          if (this.currentState.teamBlue.picks[idx]) {
+            this.currentState.teamBlue.picks[idx].playerName = p.inGameName;
+            this.currentState.teamBlue.picks[idx].role = p.role;
+          }
+        });
+      }
+    }
+
+    if (data.teamRed) {
+      if (typeof data.teamRed.coachName === "string") this.currentState.teamRed.coachName = data.teamRed.coachName.slice(0, 40);
+      if (data.teamRed.name) this.currentState.teamRed.name = data.teamRed.name;
+      if (data.teamRed.shortCode) this.currentState.teamRed.shortCode = data.teamRed.shortCode;
+      if (data.teamRed.logo) this.currentState.teamRed.logo = data.teamRed.logo;
+      if (data.teamRed.primaryColor) this.currentState.teamRed.primaryColor = data.teamRed.primaryColor;
+      if (Array.isArray(data.teamRed.players)) {
+        data.teamRed.players.slice(0, 5).forEach((p, idx) => {
+          if (this.currentState.teamRed.picks[idx]) {
+            this.currentState.teamRed.picks[idx].playerName = p.inGameName;
+            this.currentState.teamRed.picks[idx].role = p.role;
+          }
+        });
+      }
+    }
+
+    this.auditAction('MATCH_SETUP_UPDATED', 'Updated match settings, teams and rosters');
+    this.broadcastState();
+    return { success: true, state: this.currentState };
+  }
+
   // --- Fast Player Kill Logging from Draft Slots ---
   public registerDraftSlotKill(data: {
     team: 'blue' | 'red';
@@ -407,7 +475,7 @@ export class MatchStateEngine {
     const isFirstKillOverall = this.currentState.teamBlue.kills === 0 && this.currentState.teamRed.kills === 0;
     const isFB = eventData.isFirstBlood || isFirstKillOverall || eventData.multikill === 'first_blood';
 
-    const signature = `kill:${eventData.team}:${eventData.killerHero?.id || 'unknown'}:${eventData.victimHero?.id || 'unknown'}:${eventData.multikill || 'single'}:${isFB ? 'fb' : ''}`;
+    const signature = `kill:${eventData.team}:${eventData.killerHero?.id || 'unknown'}:${eventData.victimHero?.id || 'unknown'}:${eventData.multikill || 'single'}`;
     if (this.isDuplicateAction(signature)) {
       return { success: false, duplicate: true };
     }
@@ -524,8 +592,10 @@ export class MatchStateEngine {
     isSteal?: boolean;
     headline?: string;
     subline?: string;
+    announcementOnly?: boolean;
   }): { success: boolean; duplicate?: boolean } {
-    const signature = `special:${data.team}:${data.specialType}:${Date.now().toString().slice(0, -2)}`;
+    if (data.specialType === 'victory' && !data.announcementOnly && this.currentState.status === 'ended') return { success: false, duplicate: true };
+    const signature = `special:${data.team}:${data.specialType}:${data.killerHero?.id || ''}:${data.announcementOnly ? 'announcement' : 'score'}`;
     if (this.isDuplicateAction(signature)) {
       return { success: false, duplicate: true };
     }
@@ -542,10 +612,23 @@ export class MatchStateEngine {
       killerHero: data.killerHero,
       victimHero: data.victimHero,
       headline: data.headline,
-      subline: data.subline
+      subline: data.subline,
+      announcementOnly: data.announcementOnly
     };
 
     const targetTeam = data.team === 'blue' ? this.currentState.teamBlue : this.currentState.teamRed;
+
+    if (data.specialType === 'mvp' && !this.currentState.overlayControls.mvpData) return { success: false };
+    if (data.announcementOnly || data.specialType === 'mvp') {
+      event.type = 'announcement';
+      event.announcementOnly = true;
+      event.headline = data.headline || data.specialType.replaceAll('_', ' ').toUpperCase();
+      if (data.specialType === 'mvp') event.subline = this.currentState.overlayControls.mvpData?.player.inGameName;
+      this.currentState.events.unshift(event);
+      this.auditAction('ANNOUNCEMENT', event.headline);
+      this.broadcastState();
+      return { success: true };
+    }
 
     switch (data.specialType) {
       case 'first_blood':
@@ -670,14 +753,16 @@ export class MatchStateEngine {
 
     const undone = this.currentState.events.shift()!;
 
-    if (undone.specialType === 'victory' || undone.isVictory) {
+    if (undone.announcementOnly) {
+      // Announcements never mutate scores or objective counters.
+    } else if (undone.specialType === 'victory' || undone.isVictory) {
       if (undone.team === 'blue' && this.currentState.teamBlue.seriesScore > 0) {
         this.currentState.teamBlue.seriesScore -= 1;
       } else if (undone.team === 'red' && this.currentState.teamRed.seriesScore > 0) {
         this.currentState.teamRed.seriesScore -= 1;
       }
       this.currentState.status = 'live';
-    } else if (undone.type === 'kill' || undone.killerHero || undone.isFirstBlood || undone.isShutdown) {
+    } else if (undone.type === 'kill' || undone.isFirstBlood || undone.isShutdown) {
       if (undone.team === 'blue' && this.currentState.teamBlue.kills > 0) {
         this.currentState.teamBlue.kills -= 1;
       } else if (undone.team === 'red' && this.currentState.teamRed.kills > 0) {
@@ -705,6 +790,7 @@ export class MatchStateEngine {
       }
     });
 
+    this.recentActionSignatures.clear();
     this.auditAction('EVENT_UNDONE', `Undid ${undone.headline || undone.type} (${undone.team.toUpperCase()})`);
     this.broadcastState();
     return { success: true, undoneEvent: undone };
@@ -855,6 +941,11 @@ export class MatchStateEngine {
   }
 
   public updateOverlayControls(controls: Partial<MatchLiveState['overlayControls']>) {
+    if (controls.spectatorSettings) {
+      controls = { ...controls, spectatorSettings: normalizeSpectatorSettings({ ...this.currentState.overlayControls.spectatorSettings, ...controls.spectatorSettings }) };
+      const { manualGold: _manualGold, ...preferences } = controls.spectatorSettings!;
+      saveProductionSetting('spectator-overlay', preferences);
+    }
     this.currentState.overlayControls = {
       ...this.currentState.overlayControls,
       ...controls
@@ -909,6 +1000,13 @@ export class MatchStateEngine {
     };
 
     this.currentState.events = [];
+    this.recentActionSignatures.clear();
+    if (this.currentState.overlayControls.spectatorSettings) this.currentState.overlayControls.spectatorSettings.manualGold = undefined;
+    this.currentState.overlayControls.hudPlayers = undefined;
+    this.currentState.overlayControls.mvpData = undefined;
+    this.currentState.overlayControls.mvpPresentation = undefined;
+    this.currentState.overlayControls.showMvp = false;
+    this.currentState.overlayControls.eventReplay = undefined;
     this.auditAction('NEXT_GAME_PREPARED', `Prepared Game ${nextGameNumber} (Series: ${blueScore} - ${redScore})`);
     this.broadcastState();
     return { success: true };

@@ -1,0 +1,2 @@
+import type { MatchEvent } from '../../../shared/types';
+export function eventKind(e: MatchEvent) { return e.isVictory ? 'victory' : e.isFirstBlood ? 'first_blood' : e.isShutdown ? 'shutdown' : e.specialType || (e.type === 'objective' ? `${e.objective?.id}_secured` : e.type === 'tower' ? 'tower_destroyed' : e.multikill === 'double' ? 'double_kill' : e.multikill === 'triple' ? 'triple_kill' : e.multikill || 'kill'); }

@@ -1,0 +1,58 @@
+.native-safe-window{position:absolute;overflow:hidden;pointer-events:none}
+.spectator-world{position:absolute;width:1920px;height:1080px}
+.spectator-scoreboard-anchor,.spectator-event-anchor{position:absolute;transform-origin:top left}
+.spectator-scoreboard-anchor{width:880px;height:108px}
+.spectator-scoreboard{position:relative;width:880px;height:108px;color:#f2ecdf;text-transform:uppercase;font-family:'Broadcast Teko',Impact,sans-serif}
+.spectator-chassis{position:absolute;inset:0;width:880px;height:108px}
+.spectator-team{position:absolute;left:23px;top:8px;width:307px;height:60px;display:flex;align-items:center;gap:16px}
+.spectator-team-logo{width:55px;height:55px;display:flex;align-items:center;justify-content:center;flex:none}
+.spectator-team-logo>img{width:100%;height:100%;object-fit:contain}
+.spectator-team>b{font-size:39px;line-height:46px;font-weight:500;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spectator-series{position:absolute;left:252px;top:1px;width:48px;height:53px;color:#131216;text-align:center}
+.spectator-series small{display:block;font:700 8px/12px Arial,sans-serif;letter-spacing:.7px}
+.spectator-series strong{font-size:40px;line-height:39px;font-weight:500}
+.spectator-team.team-1{left:auto;right:23px;flex-direction:row-reverse}
+.spectator-team.team-1 .spectator-series{left:auto;right:252px}
+.spectator-match{position:absolute;left:348px;top:9px;width:184px;height:59px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.spectator-match>small{font:700 9px/12px Arial,sans-serif;letter-spacing:1px;color:#d5bd8a;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spectator-match>b{font-size:25px;line-height:28px;font-weight:500;letter-spacing:1px}
+.spectator-match i{font:10px Arial,sans-serif;color:#b896ca;padding:0 6px}
+.spectator-match>span{font:700 10px/13px 'Broadcast Barlow',sans-serif;color:#d7c49d;max-width:174px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spectator-verified-data{position:absolute;left:45px;right:45px;top:82px;display:flex;justify-content:space-evenly;align-items:center;gap:8px;font:700 11px/18px Arial,sans-serif;color:#e2cfaa;white-space:nowrap}
+.spectator-event-anchor{width:626px;height:240px}
+.spectator-event-anchor>.event-ribbon{position:absolute;left:0;top:0;width:626px;height:240px}
+.spectator-event-anchor .event-composition{left:43px;top:8px}
+.spectator-event-anchor .event-victory{left:0;top:0}
+.spectator-event-anchor .event-player{font-size:12px}
+.custom-player-panels .hud-player-copy small:empty{display:none}
+/* Operator preview: all geometry is expressed in the same 1920 × 1080 coordinates. */
+.spectator-editor{border:1px solid #494032;background:#1a181e;border-radius:8px;padding:20px;color:#eee6d6}
+.spectator-editor h2{font-size:21px;font-weight:700}.spectator-editor p{font-size:13px;color:#b6adb9;line-height:1.6}
+.spectator-editor input,.spectator-editor select{background:#100f13;border:1px solid #4d4334;border-radius:5px;padding:7px 9px;color:#f0e8d8;max-width:100%}
+.spectator-editor button,.spectator-upload{border:1px solid #695236;border-radius:5px;padding:7px 12px;font-size:13px;background:#292329;color:#efdbb6}
+.spectator-editor button:disabled{opacity:.45}.spectator-editor button.primary{background:#72552d;color:#fff1d2}
+.spectator-editor label{font-size:12px;color:#d6c7ae}.spectator-editor input[type=checkbox]{accent-color:#c5a46b}
+.spectator-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+.spectator-toolbar label{display:flex;align-items:center;gap:8px}
+.spectator-canvas{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:repeating-conic-gradient(#252229 0% 25%,#201d24 0% 50%) 0 / 24px 24px;border:1px solid #5f4b32;touch-action:none}
+.spectator-editor-world{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:top left}
+.spectator-screenshot{position:absolute;inset:0;width:1920px;height:1080px;object-fit:contain;pointer-events:none}
+.native-guide{position:absolute;background:#74425f44;border:1px dashed #e4a3b6;pointer-events:none;color:#f4c2d2;font:700 20px/24px Arial,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center}
+.native-guide>span{background:#2c172bd9;padding:8px 12px}.native-guide.side>span{writing-mode:vertical-rl}
+.graphic-drag-handle{position:absolute;border:2px dashed #f0d59c;cursor:grab;touch-action:none;background:#d6b16c06}
+.graphic-drag-handle.event-handle{border-color:#bb95db}
+.graphic-drag-handle>span{position:absolute;left:0;bottom:100%;background:#211927e6;font:700 18px/25px Arial,sans-serif;padding:2px 9px;color:#f0d59c;white-space:nowrap}
+.spectator-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:18px}
+.spectator-controls fieldset{border:1px solid #4c4032;border-radius:5px;padding:12px}
+.spectator-controls legend{padding:0 7px;font-size:13px;color:#d9bb81}
+.spectator-number-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:9px 0}
+.spectator-number-row input{width:100px}.spectator-number-row input[type=range]{width:135px;padding:0}
+.spectator-flags{display:flex;flex-wrap:wrap;gap:16px;margin:16px 0}.spectator-flags label{display:flex;align-items:center;gap:7px}
+.spectator-editor-status{font-size:12px;color:#d2bf9d}.spectator-preview-note{position:absolute;left:18px;bottom:18px;background:#15121bd9;padding:10px 15px;color:#ddd1bb;font:700 16px/22px Arial,sans-serif;pointer-events:none}
+@media(max-width:900px){.spectator-controls{grid-template-columns:1fr}.spectator-editor{padding:12px}}
+
+.editor-event-still .event-ribbon,.editor-event-still .event-ribbon *{animation:none!important}
+
+.spectator-sponsor{position:absolute;left:51px;top:81px;width:125px;height:20px;display:flex;align-items:center;justify-content:center;font:700 12px/18px 'Broadcast Barlow',sans-serif;color:#d9bf8b}
+.spectator-sponsor.partner-1{left:auto;right:51px}.spectator-sponsor>img{max-width:125px;max-height:20px;object-fit:contain}.spectator-sponsor>span{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.has-sponsors .spectator-verified-data{left:185px;right:185px;font-size:9px;gap:5px}

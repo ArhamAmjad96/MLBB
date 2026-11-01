@@ -9,31 +9,36 @@ export function useMatchState() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    let disposed = false;
+    let receivedSync = false;
     // Initial fetch via HTTP
     api.getState()
-      .then(s => setState(s))
+      .then(s => { if (!disposed && !receivedSync) setState(s); })
       .catch(err => console.error('Failed to load initial state:', err));
 
     // Connect WebSocket
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:3001`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-    let reconnectTimeout: any = null;
-
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     function connectWs() {
+      if (disposed) return;
       try {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {
+          if (disposed) { ws.close(); return; }
           setIsConnected(true);
           ws.send(JSON.stringify({ type: 'REQUEST_SYNC' }));
         };
 
         ws.onmessage = (event) => {
+          if (disposed || wsRef.current !== ws) return;
           try {
             const data: WsMessage = JSON.parse(event.data);
             if (data.type === 'STATE_UPDATE' && data.payload) {
+              receivedSync = true;
               setState(data.payload);
             } else if (data.type === 'EVENT_UNDONE' && data.payload) {
               setLastUndoneEventId(data.payload.eventId);
@@ -64,8 +69,9 @@ export function useMatchState() {
         };
 
         ws.onclose = () => {
+          if (disposed) return;
           setIsConnected(false);
-          reconnectTimeout = setTimeout(connectWs, 2000);
+          if (!disposed) reconnectTimeout = setTimeout(connectWs, 2000);
         };
 
         ws.onerror = () => {
@@ -74,13 +80,14 @@ export function useMatchState() {
         };
       } catch (e) {
         console.error('WS Connection error:', e);
-        reconnectTimeout = setTimeout(connectWs, 2000);
+        if (!disposed) reconnectTimeout = setTimeout(connectWs, 2000);
       }
     }
 
     connectWs();
 
     return () => {
+      disposed = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (wsRef.current) wsRef.current.close();
     };

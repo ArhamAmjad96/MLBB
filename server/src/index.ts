@@ -9,10 +9,10 @@ import { HOK_HEROES, HOK_OBJECTIVES } from './config/hok.js';
 import { GameType } from '../../shared/types.js';
 
 const app = express();
-const port = 3001;
+const port = Number(process.env.MARK47_PORT) || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Initialize SQLite database
 initDatabase();
@@ -78,6 +78,11 @@ app.post('/api/match/lifecycle', (req, res) => {
 });
 
 // 2c. Team Assignment to Active Match
+app.post('/api/match/setup', (req, res) => {
+  const result = engine.updateMatchSetup(req.body);
+  res.json(result);
+});
+
 app.post('/api/match/teams', (req, res) => {
   const { blueTeamId, redTeamId } = req.body;
   const result = engine.setMatchTeams(blueTeamId, redTeamId);
@@ -255,6 +260,54 @@ app.get('/api/teams', (req, res) => {
   });
 
   res.json(teamsWithPlayers);
+});
+
+app.post('/api/teams', (req, res) => {
+  const { id, name, shortCode, game, logo, primaryColor, players } = req.body;
+  if (!name || !shortCode || !game) {
+    return res.status(400).json({ error: 'Team name, shortCode and game are required' });
+  }
+
+  const teamId = id || `team_${Date.now()}`;
+  const teamLogo = logo || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(shortCode)}`;
+  const teamPrimaryColor = primaryColor || (game === 'mlbb' ? '#0284c7' : '#dc2626');
+
+  const upsertTeam = db.prepare(`
+    INSERT INTO teams (id, name, short_code, game, logo, primary_color)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      short_code = excluded.short_code,
+      game = excluded.game,
+      logo = excluded.logo,
+      primary_color = excluded.primary_color
+  `);
+  upsertTeam.run(teamId, name, shortCode, game, teamLogo, teamPrimaryColor);
+
+  if (Array.isArray(players)) {
+    db.prepare('DELETE FROM players WHERE team_id = ?').run(teamId);
+    const insertPlayer = db.prepare(`
+      INSERT INTO players (id, team_id, name, in_game_name, role, photo)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    players.forEach((p: any, idx: number) => {
+      const pId = p.id || `p_${teamId}_${idx}`;
+      const pName = p.name || p.inGameName || `Player ${idx + 1}`;
+      const pIgn = p.inGameName || pName;
+      const pRole = p.role || 'FLEX';
+      const pPhoto = p.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pIgn)}`;
+      insertPlayer.run(pId, teamId, pName, pIgn, pRole, pPhoto);
+    });
+  }
+
+  res.json({ success: true, teamId });
+});
+
+app.delete('/api/teams/:id', (req, res) => {
+  const teamId = req.params.id;
+  db.prepare('DELETE FROM players WHERE team_id = ?').run(teamId);
+  db.prepare('DELETE FROM teams WHERE id = ?').run(teamId);
+  res.json({ success: true });
 });
 
 server.listen(port, () => {
